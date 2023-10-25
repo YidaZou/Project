@@ -11,9 +11,9 @@
 ## 2. _due 10/25_ Project topic
 
 ## 2. _due 10/25_ Brief project description (what algorithms will you be comparing and on what architectures)
-
+"""
 We will communicate via iMessage.
-
+"""
 For example:
 - Algorithm 1a (MPI + CUDA)
 - Algorithm 1b (MPI on each core)

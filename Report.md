@@ -23,23 +23,23 @@ We will communicate via iMessage.
 
 Algorithms we will use:
 - Sample Sort
-'''
-function SampleSort(inputList, t):  //t = thread count
-    # Step 1: Divide list into samples depending on number of threads
-    sampleSize = calculateSampleSize(inputList)
-    sample = selectSample(inputList, sampleSize)
+```
+function SampleSort(unsortedList, t):  //t = thread count
+    //Divide input into samples depending on number of threads
+    sampleSize = calculateSampleSize(unsortedList, t)
+    sample = selectSample(unsortedList, sampleSize)
     
-    # Step 2: Broadcast Sample
-    broadcast(sample)  # Distribute the sample to all processors
+    //Distribute the sample to all processors 
+    distribute(sample)  //Using MPI
     
-    # Step 3: Local Sort
-    localList = sortLocally(inputList)  # Each processor sorts its local list
+    //Each thread sorts the given sample locally
+    sortedSample = sortLocally(sample)
+
+    //Gather sorted samples
+    sortedSamples = communicate(sample)    //Using MPI
+
+    //Merge and sort all samples together
+    sortedLists = mergeSublists(sortedSamples)
     
-    # Step 4: Local Split
-    localSublists = splitLocally(localList, sample)
-    
-    # Step 5: Global Merge
-    sortedSublists = mergeSublists(localSublists)  # Merge all sorted sublists
-    
-    return sortedSublists
-'''
+    return sortedSublist
+```

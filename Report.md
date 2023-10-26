@@ -72,9 +72,6 @@ function void merge_sort(arr, numThreads):
 
     return sorted_data
 ```
-To vary our algorithms, we will apply the following communication and parallelization strategies to our merge sort:
-- fork/join parallelism
-- point-to-point communication
 
 - Bitonic Sort (MPI + CUDA)
 ```

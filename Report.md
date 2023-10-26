@@ -15,12 +15,6 @@ Choose 3+ parallel sorting algorithms, implement in MPI and CUDA.  Examine and c
 
 ## 2. _due 10/25_ Brief project description (what algorithms will you be comparing and on what architectures)
 
-For example:
-- Algorithm 1a (MPI + CUDA)
-- Algorithm 1b (MPI on each core)
-- Algorithm 2a (MPI + CUDA)
-- Algorithm 2b (MPI on each core)
-
 We will communicate via iMessage.
 
 Algorithms we will implement:

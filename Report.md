@@ -2,7 +2,7 @@
 
 ## 1. Group members:
 1. Yida Zou
-2. Second
+2. Brian Chen
 3. Third
 4. Fourth
 
@@ -21,10 +21,10 @@ For example:
 - Algorithm 2a (MPI + CUDA)
 - Algorithm 2b (MPI on each core)
 
-
 We will communicate via iMessage.
 
 Algorithms we will implement:
+
 - Sample Sort (MPI + CUDA)
 ```
 function SampleSort(unsortedList, t):  //t = thread count
@@ -46,3 +46,32 @@ function SampleSort(unsortedList, t):  //t = thread count
     
     return sortedSublist
 ```
+
+- Merge Sort (MPI + CUDA)
+```
+function void merge_sort(arr, numThreads):
+
+    # Initialize MPI environment
+    MPI_Init()
+
+    # Get the MPI rank and size
+    rank = MPI_Comm_rank(MPI_COMM_WORLD)
+    size = MPI_Comm_size(MPI_COMM_WORLD)
+
+    # Divide and distribute data across nodes
+    local_data = distribute_data(rank, size)
+
+    # Sort local data using CUDA
+    local_data = cuda_merge_sort(local_data)
+
+    # Communicate data between nodes, and merge lists
+    sorted_data = gather_and_merge(local_data, rank, size)
+
+    # Finalize MPI environment
+    MPI_Finalize()
+
+    return sorted_data
+```
+To vary our algorithms, we will apply the following communication and parallelization strategies:
+- fork/join parallelism
+- point-to-point communication

@@ -3,23 +3,18 @@
 ## 1. Group members:
 1. Yida Zou
 2. Brian Chen
-3. Third
-4. Fourth
+3. Sam Hollenbeck
+4. Alex Pantazopol
 
 ---
 
 ## 2. _due 10/25_ Project topic
 
 We chose to use the suggested topic idea:
+
 Choose 3+ parallel sorting algorithms, implement in MPI and CUDA.  Examine and compare performance in detail (computation time, communication time, how much data is sent) on a variety of inputs: sorted, random, reverse, sorted with 1% perturbed, etc.  Strong scaling, weak scaling, GPU performance.
 
 ## 2. _due 10/25_ Brief project description (what algorithms will you be comparing and on what architectures)
-
-For example:
-- Algorithm 1a (MPI + CUDA)
-- Algorithm 1b (MPI on each core)
-- Algorithm 2a (MPI + CUDA)
-- Algorithm 2b (MPI on each core)
 
 We will communicate via iMessage.
 
@@ -95,4 +90,13 @@ function void bitonic_sort(arr, numThreads) {
 }
 
 ```
+<<<<<<< HEAD
 
+=======
+We will compare the performance of these three algorithms with the metrics stated in the project topic.
+
+
+To vary our algorithms, we will apply the following communication and parallelization strategies:
+- fork/join parallelism
+- point-to-point communication
+>>>>>>> 43fa1580a4bcc248a4d3433504d228eff41a36ff

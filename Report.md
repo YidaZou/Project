@@ -3,8 +3,8 @@
 ## 1. Group members:
 1. Yida Zou
 2. Brian Chen
-3. Third
-4. Fourth
+3. Sam Hollenbeck
+4. Alex Pantazopol
 
 ---
 

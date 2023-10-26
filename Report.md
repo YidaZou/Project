@@ -72,6 +72,29 @@ function void merge_sort(arr, numThreads):
 
     return sorted_data
 ```
+
+- Bitonic Sort (MPI + CUDA)
+```
+function void bitonic_sort(arr, numThreads) {
+
+    MPI_Init(...);
+    rank = MPI_Comm_rank(...);
+    size = MPI_Comm_size(...);
+
+    MPI_Scatter(...);
+
+    for (...) { // major step
+        for (...) { // minor step
+            sortOnGPU(...);
+        }
+    }
+
+    MPI_Gather(...);
+    MPI_Finalize();
+    return sorted_data;
+}
+
+```
 To vary our algorithms, we will apply the following communication and parallelization strategies:
 - fork/join parallelism
 - point-to-point communication

@@ -90,7 +90,6 @@ function void bitonic_sort(arr, numThreads) {
 }
 
 ```
-<<<<<<< HEAD
 
 =======
 We will compare the performance of these three algorithms with the metrics stated in the project topic.
@@ -99,7 +98,6 @@ We will compare the performance of these three algorithms with the metrics state
 To vary our algorithms, we will apply the following communication and parallelization strategies:
 - fork/join parallelism
 - point-to-point communication
->>>>>>> 43fa1580a4bcc248a4d3433504d228eff41a36ff
 3. due 11/08 Pseudocode for each algorithm and implementation
 3. due 11/08 Evaluation plan - what and how will you measure and compare
 For example:

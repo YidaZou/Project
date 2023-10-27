@@ -91,7 +91,7 @@ function void bitonic_sort(arr, numThreads) {
 
 ```
 
-=======
+
 We will compare the performance of these three algorithms with the metrics stated in the project topic.
 
 

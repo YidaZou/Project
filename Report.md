@@ -98,8 +98,10 @@ We will compare the performance of these three algorithms with the metrics state
 To vary our algorithms, we will apply the following communication and parallelization strategies:
 - fork/join parallelism
 - point-to-point communication
-3. due 11/08 Pseudocode for each algorithm and implementation
-3. due 11/08 Evaluation plan - what and how will you measure and compare
+
+  
+## 3. due 11/08 Pseudocode for each algorithm and implementation
+## 3. due 11/08 Evaluation plan - what and how will you measure and compare
 For example:
 
 Effective use of a GPU (play with problem size and number of threads)

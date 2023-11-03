@@ -1,7 +1,7 @@
 # CSCE 435 Group project
 
 ## 0. Group number: 
-
+6
 ## 1. Group members:
 1. Yida Zou
 2. Brian Chen

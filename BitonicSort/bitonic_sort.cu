@@ -28,4 +28,11 @@ int main(int argc, char *argv[])
     float *values = (float*) malloc( NUM_VALS * sizeof(float));
     array_fill(values, NUM_VALS);
 
+    cali::ConfigManager mgr;
+    mgr.start();
+
+    // INSERT ADAIK CODE HERE
+    
+    mgr.stop();
+    mgr.flush();
 }

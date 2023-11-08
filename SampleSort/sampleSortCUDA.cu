@@ -181,7 +181,7 @@ void main(int argc, char *argv[]){
     adiak::value("SizeOfDatatype", sizeof(float)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
     adiak::value("InputSize", inputSize); // The number of elements in input dataset (1000)
     adiak::value("InputType", "Random"); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
-    adiak::value("num_procs", num_procs); // The number of processors (MPI ranks)
+    //adiak::value("num_procs", num_procs); // The number of processors (MPI ranks)
     adiak::value("num_threads", num_threads); // The number of CUDA or OpenMP threads
     adiak::value("num_blocks", num_blocks); // The number of CUDA blocks 
     adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)

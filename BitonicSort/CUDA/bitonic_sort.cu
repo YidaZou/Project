@@ -16,14 +16,42 @@ const char* cudaMemcpy_host_to_device = "cudaMemcpy_host_to_device";
 const char* cudaMemcpy_device_to_host = "cudaMemcpy_device_to_host";
 
 // Store results in these variables.
-float effective_bandwidth_gb_s;
 float bitonic_sort_step_time;
 float cudaMemcpy_host_to_device_time;
 float cudaMemcpy_device_to_host_time;
 int kernel_call_count = 0;
-double bandwidth;
 double numerator;
 double denominator;
+
+// NEED TO TIME THIS FUNCTION
+__global__ void bitonic_sort_step(float *dev_values, int j, int k)
+{
+  unsigned int i, ixj; /* Sorting partners: i and ixj */
+  i = threadIdx.x + blockDim.x * blockIdx.x;
+  ixj = i^j;
+
+  /* The threads with the lowest ids sort the array. */
+  if ((ixj)>i) {
+    if ((i&k)==0) {
+      /* Sort ascending */
+      if (dev_values[i]>dev_values[ixj]) {
+        /* exchange(i,ixj); */
+        float temp = dev_values[i];
+        dev_values[i] = dev_values[ixj];
+        dev_values[ixj] = temp;
+      }
+    }
+    if ((i&k)!=0) {
+      /* Sort descending */
+      if (dev_values[i]<dev_values[ixj]) {
+        /* exchange(i,ixj); */
+        float temp = dev_values[i];
+        dev_values[i] = dev_values[ixj];
+        dev_values[ixj] = temp;
+      }
+    }
+  }
+}
 
 void bitonic_sort(float *values)
 {
@@ -90,16 +118,6 @@ void bitonic_sort(float *values)
   CALI_MARK_END(cudaMemcpy_device_to_host);
 
   cudaFree(dev_values);
-
-  numerator = kernel_call_count * 6 * size / 1e9;
-  denominator = bitonic_sort_step_time / 1000;
-
-  bandwidth = numerator / denominator;
-
-
-  printf("Kernel call count %d\n", kernel_call_count);
-  printf("Numerator %f\n", numerator);
-  printf("Denominator %f\n", denominator);
 }
 
 
@@ -119,18 +137,42 @@ void array_fill(float *arr, int length)
 
 int main(int argc, char *argv[])
 {
-    THREADS = atoi(argv[1]);
-    NUM_VALS = atoi(argv[2]);
-    BLOCKS = NUM_VALS / THREADS;
-    
-    float *values = (float*) malloc( NUM_VALS * sizeof(float));
-    array_fill(values, NUM_VALS);
+  THREADS = atoi(argv[1]);
+  NUM_VALS = atoi(argv[2]);
+  BLOCKS = NUM_VALS / THREADS;
 
-    cali::ConfigManager mgr;
-    mgr.start();
+  // Create caliper ConfigManager object
+  cali::ConfigManager mgr;
+  mgr.start();
 
-    // INSERT ADAIK CODE HERE
-    
-    mgr.stop();
-    mgr.flush();
+  clock_t start, stop;
+
+  float *values = (float*) malloc( NUM_VALS * sizeof(float));
+  array_fill(values, NUM_VALS);
+
+  start = clock();
+  bitonic_sort(values); /* Inplace */
+  stop = clock();
+
+  print_elapsed(start, stop);
+
+  adiak::init(NULL);
+  adiak::user();
+  adiak::launchdate();
+  adiak::libraries();
+  adiak::cmdline();
+  adiak::clustername();
+  adiak::value("num_threads", THREADS);
+  adiak::value("num_blocks", BLOCKS);
+  adiak::value("num_vals", NUM_VALS);
+  adiak::value("program_name", "cuda_bitonic_sort");
+  adiak::value("datatype_size", sizeof(float));
+  adiak::value("effective_bandwidth (GB/s)", effective_bandwidth_gb_s);
+  adiak::value("bitonic_sort_step_time", bitonic_sort_step_time);
+  adiak::value("cudaMemcpy_host_to_device_time", cudaMemcpy_host_to_device_time);
+  adiak::value("cudaMemcpy_device_to_host_time", cudaMemcpy_device_to_host_time);
+
+  // Flush Caliper output before finalizing MPI
+  mgr.stop();
+  mgr.flush();
 }

@@ -11,7 +11,16 @@
 int num_threads;
 int num_blocks;
 int inputSize;
-float *values
+int bucketSize;
+
+const char* data_init = "data_init";
+const char* correctness_check = "correctness_check";
+const char* comm = "comm";
+//const char* comm_small = "comm_small";
+const char* comm_large = "comm_large";
+const char* comp = "comp";
+//const char* comp_small = "comp_small";
+const char* comp_large = "comp_large";
 
 float random_float()
 {
@@ -27,26 +36,114 @@ void array_fill(float *arr, int length)
   }
 }
 
-void sampleSort(float *values){
-    
+__global__ void sampleSortKernel(float *values, float *outValues, float* inputSize){
+  __shared__ float localBucket[bucketSize];
+	__shared__ int localCount; //Counter to track bucket index
+
+	int threadId = threadIdx.x; 
+  int blockId = blockIdx.x;
+	int offset = blockDim.x;
+	int bucket, index, phase;
+	float temp;
+	
+	if(threadId == 0)
+		localCount = 0;
+
+	__syncthreads();
+
+  CALI_MARK_BEGIN(comp_small);
+	/* Block traverses through the array and buckets the element accordingly */
+	while(threadId < inputSize) {
+		bucket = values[threadId] * 10;
+		if(bucket == blockId) {
+			index = atomicAdd(&localCount, 1);
+			localBucket[index] = values[threadId]; 
+		}
+		threadId += offset;		
+	}
+  CALI_MARK_END(comp_small);
+
+	__syncthreads();
+	
+  CALI_MARK_BEGIN(comp_large);
+	threadId = threadIdx.x;
+	//Sorting the bucket using Parallel Bubble Sort
+	for(phase = 0; phase < bucketLength; phase ++) {
+		if(phase % 2 == 0) {
+			while((threadId < bucketLength) && (threadId % 2 == 0)) {
+				if(localBucket[threadId] > localBucket[threadId +1]) {
+					temp = localBucket[threadId];
+					localBucket[threadId] = localBucket[threadId + 1];
+					localBucket[threadId + 1] = temp;
+				}
+				threadId += offset;
+			}
+		}
+		else {
+			while((threadId < bucketLength - 1) && (threadId %2 != 0)) {
+				if(localBucket[threadId] > localBucket[threadId + 1]) {
+					temp = localBucket[threadId];
+					localBucket[threadId] = localBucket[threadId + 1];
+					localBucket[threadId + 1] = temp;
+				}
+				threadId += offset;
+			}
+		}
+	}
+  CALI_MARK_END(comp_large);
+	
+  CALI_MARK_BEGIN(comp_small);
+	threadId = threadIdx.x;
+	while(threadId < bucketLength) {
+		outData[(blockIdx.x * bucketLength) + threadId] = localBucket[threadId];
+		threadId += offset;
+	}
+  CALI_MARK_END(comp_small);
 
 }
 
-void correctness_check(){
+void sampleSort(float *values, float outValues){
+  float *dev_values, *dev_outValues;
+  size_t size = inputSize * sizeof(float);
+  size_t outSize = bucketSize * num_blocks sizeof(float);
+
+  cudaMalloc((void**) &dev_values, size);
+	cudaMalloc((void**) &dev_outValues, outSize);
+	cudaMemset(dev_outValues, 0, outSize);
+
+  CALI_MARK_BEGIN(comm);
+  CALI_MARK_BEGIN(comm_large);
+  cudaMemcpy(dev_values, values, size, cudaMemcpyHostToDevice);
+  CALI_MARK_END(comm_large);
+  CALI_MARK_END(comm);
+
+  CALI_MARK_BEGIN(comp);
+	sampleSortKernel<<<num_blocks, num_threads>>>(dev_values, dev_outValues, inputSize);
+  CALI_MARK_END(comp);
+
+
+  CALI_MARK_BEGIN(comm);
+  CALI_MARK_BEGIN(comm_large);
+	cudaMemcpy(outValues, d_output, out_size, cudaMemcpyDeviceToHost);
+  CALI_MARK_END(comm_large);
+  CALI_MARK_END(comm);
+
+  cudaFree(dev_values);
+  cudaFree(dev_outValues);
+}
+
+void correctness_check(float *outValues){
     //check if sorted
-    int i;
-    for(i = 0; i < inputSize - 1; i++){
-        if(values[i] > values[i+1]){
-            printf("Error: Array not sorted\n");
+    for(int i = 0; i < inputSize - 1; i++){
+        if(outValues[i] > outValues[i+1]){
+            printf("Error: Not sorted\n");
             return;
         }
     }
-    printf("Array sorted correctly\n");
-    return;
+    printf("Success: Sorted\n");
 }
 
-void data_init(){
-    values = (float*) malloc(inputSize * sizeof(float));
+void data_init(float *values){
     array_fill(values, inputSize);
 }
 
@@ -54,12 +151,24 @@ void main(int argc, char *argv[]){
     num_threads = atoi(argv[1]);
     inputSize = atoi(argv[2]);
     num_blocks = inputSize/num_threads;
+    bucketSize = inputSize/num_blocks;
 
-    data_init();
+    //cali config manager
+    cali::ConfigManager mgr;
+    mgr.start();
 
-    sampleSort(values);
+    float *values = (float*) malloc(inputSize * sizeof(float));
+    float *outValues = (float*) malloc(inputSize * sizeof(float));
 
-    correctness_check();
+    CALI_MARK_BEGIN(data_init);
+    data_init(values);
+    CALI_MARK_END(data_init);
+
+    sampleSort(values, outValues);
+
+    CALI_MARK_BEGIN(correctness_check);
+    correctness_check(outValues);
+    CALI_MARK_END(correctness_check);
 
     adiak::init(NULL);
     adiak::launchdate();    // launch date of the job
@@ -76,7 +185,8 @@ void main(int argc, char *argv[]){
     adiak::value("num_threads", num_threads); // The number of CUDA or OpenMP threads
     adiak::value("num_blocks", num_blocks); // The number of CUDA blocks 
     adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)
-    adiak::value("implementation_source", implementation_source) // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
-    return;
+    adiak::value("implementation_source", "online") // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
+    mgr.stop();
+    mgr.flush();
 }
 

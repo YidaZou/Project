@@ -23,6 +23,17 @@ We will communicate via iMessage.
 Algorithms we will implement:
 
 - Sample Sort (MPI + CUDA)
+- Merge Sort (MPI + CUDA)
+- Bitonic Sort (MPI + CUDA)
+
+We will compare the performance of these three algorithms with the metrics stated in the project topic.
+
+To vary our algorithms, we will apply the following communication and parallelization strategies:
+- fork/join parallelism
+- point-to-point communication
+
+  
+## 3. due 11/08 Pseudocode for each algorithm and implementation
 ```
 function SampleSort(unsortedList, t):  //t = thread count
     //Divide input into samples depending on number of threads
@@ -43,8 +54,6 @@ function SampleSort(unsortedList, t):  //t = thread count
     
     return sortedSublist
 ```
-
-- Merge Sort (MPI + CUDA)
 ```
 function void merge_sort(arr, numThreads):
 
@@ -69,8 +78,6 @@ function void merge_sort(arr, numThreads):
 
     return sorted_data
 ```
-
-- Bitonic Sort (MPI + CUDA)
 ```
 function void bitonic_sort(arr, numThreads) {
 
@@ -92,18 +99,13 @@ function void bitonic_sort(arr, numThreads) {
 }
 
 ```
-
-
-We will compare the performance of these three algorithms with the metrics stated in the project topic.
-
-
-To vary our algorithms, we will apply the following communication and parallelization strategies:
-- fork/join parallelism
-- point-to-point communication
-
-  
-## 3. due 11/08 Pseudocode for each algorithm and implementation
 ## 3. due 11/08 Evaluation plan - what and how will you measure and compare
+Some of the things we will compare are:
+
+Runtimes between parallel sorting algorithms on GPU and CPU (MPI vs CUDA)
+Scaling the number of threads or processors
+Scaling the problem size (length of array to sort)
+
 For example:
 
 Effective use of a GPU (play with problem size and number of threads)

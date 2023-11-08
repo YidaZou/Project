@@ -9,6 +9,8 @@
 #define FROM_MASTER 1
 #define FROM_WORKER 2
 
+// TODO: change cmake and mpi.grace_job files to use new file name
+
 void bitonic_merge(int* arr, int start, int size, int dir) {
     if (size > 1) {
         int k = size / 2;

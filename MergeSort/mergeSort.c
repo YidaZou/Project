@@ -1,6 +1,7 @@
 // C program for Merge Sort
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h> 
  
 // Merges two subarrays of arr[].
 // First subarray is arr[l..m]
@@ -91,12 +92,24 @@ void correctness_check(int arr[], int size)
     printf("\nArray sorted correctly\n");
     return;
 }
+
+void fillRandomArray(int arr[], int size) {
+    srand(time(NULL));  // Seed the random number generator with the current time
+
+    for (int i = 0; i < size; i++) {
+        arr[i] = rand();  // Generate random integers for the array
+    }
+}
  
 // Driver code
 int main()
 {
-    int arr[] = { 12, 11, 13, 5, 6, 7 };
-    int arr_size = sizeof(arr) / sizeof(arr[0]);
+    // Define an array with 1000 elements
+  int arr_size = 10;
+  int arr[arr_size]; 
+
+  // Fill the array with random values
+  fillRandomArray(arr, arr_size);
  
     printf("Given array is \n");
     printArray(arr, arr_size);

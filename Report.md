@@ -106,12 +106,6 @@ Runtimes between parallel sorting algorithms on GPU and CPU (MPI vs CUDA)
 Scaling the number of threads or processors
 Scaling the problem size (length of array to sort)
 
-For example:
-
-Effective use of a GPU (play with problem size and number of threads)
-Strong scaling to more nodes (same problem size, increase number of processors)
-Weak scaling (increase problem size, increase number of processors)
-
 ## 3. Project implementation
 Implement your proposed algorithms, and test them starting on a small scale.
 Instrument your code, and turn in at least one Caliper file per algorithm;

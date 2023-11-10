@@ -150,6 +150,7 @@ void data_init(float *values){
 void main(int argc, char *argv[]){
     num_threads = atoi(argv[1]);
     inputSize = atoi(argv[2]);
+    inputSize = atoi(argv[3]);
     num_blocks = inputSize/num_threads;
     bucketSize = inputSize/num_blocks;
 
@@ -176,7 +177,7 @@ void main(int argc, char *argv[]){
     adiak::cmdline();       // Command line used to launch the job
     adiak::clustername();   // Name of the cluster
     adiak::value("Algorithm", "SampleSort"); // The name of the algorithm you are using (e.g., "MergeSort", "BitonicSort")
-    adiak::value("ProgrammingModel", "MPIwithCUDA"); // e.g., "MPI", "CUDA", "MPIwithCUDA"
+    adiak::value("ProgrammingModel", "CUDA"); // e.g., "MPI", "CUDA", "MPIwithCUDA"
     adiak::value("Datatype", "float"); // The datatype of input elements (e.g., double, int, float)
     adiak::value("SizeOfDatatype", sizeof(float)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
     adiak::value("InputSize", inputSize); // The number of elements in input dataset (1000)

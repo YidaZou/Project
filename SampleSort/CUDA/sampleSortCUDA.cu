@@ -7,12 +7,12 @@
 #include <adiak.hpp>
 #include <cuda_runtime.h>
 #include <cuda.h>
+#include <string>
 
 int num_threads;
 int num_blocks;
 int inputSize;
-int bucketSize;
-char* inputType;
+std::string inputType;
 
 const char* data_init = "data_init";
 const char* correctness_check = "correctness_check";
@@ -55,15 +55,6 @@ void array_fill_reverseSorted(float *arr, int length)
   }
 }
 
-void array_fill_reverseSorted(float *arr, int length)
-{
-  srand(time(NULL));
-  int i;
-  for (i = 0; i < length; ++i) {
-    arr[i] = length-1 - i;
-  }
-}
-
 void array_fill_1perturbed(float *arr, int length)
 {
   srand(time(NULL));
@@ -77,7 +68,7 @@ void array_fill_1perturbed(float *arr, int length)
   }
 }
 
-void correctness_check(float *outValues){
+void correctnessCheck(float *outValues){
     //check if sorted
     for(int i = 0; i < inputSize - 1; i++){
         if(outValues[i] > outValues[i+1]){
@@ -88,7 +79,7 @@ void correctness_check(float *outValues){
     printf("Success: Sorted\n");
 }
 
-void data_init(float *values){
+void dataInit(float *values){
   if(inputType == "Random"){
     array_fill_random(values, inputSize);
   }
@@ -107,124 +98,127 @@ void data_init(float *values){
   }
 }
 
-__global__ void sampleSortKernel(float *values, float *outValues, float* inputSize){
-  __shared__ float localBucket[bucketSize];
-	__shared__ int localCount; //Counter to track bucket index
-
-	int threadId = threadIdx.x; 
-  int blockId = blockIdx.x;
-	int offset = blockDim.x;
-	int bucket, index, phase;
-	float temp;
-	
-	if(threadId == 0)
-		localCount = 0;l
-
-	__syncthreads();
-
-  CALI_MARK_BEGIN(comp_small);
-	/* Block traverses through the array and buckets the element accordingly */
-	while(threadId < inputSize) {
-		bucket = values[threadId] * 10;
-		if(bucket == blockId) {
-			index = atomicAdd(&localCount, 1);
-			localBucket[index] = values[threadId]; 
-		}
-		threadId += offset;		
-	}
-  CALI_MARK_END(comp_small);
-
-	__syncthreads();
-	
-  CALI_MARK_BEGIN(comp_large);
-	threadId = threadIdx.x;
-	//Sorting the bucket using Parallel Bubble Sort
-	for(phase = 0; phase < bucketLength; phase ++) {
-		if(phase % 2 == 0) {
-			while((threadId < bucketLength) && (threadId % 2 == 0)) {
-				if(localBucket[threadId] > localBucket[threadId +1]) {
-					temp = localBucket[threadId];
-					localBucket[threadId] = localBucket[threadId + 1];
-					localBucket[threadId + 1] = temp;
-				}
-				threadId += offset;
-			}
-		}
-		else {
-			while((threadId < bucketLength - 1) && (threadId %2 != 0)) {
-				if(localBucket[threadId] > localBucket[threadId + 1]) {
-					temp = localBucket[threadId];
-					localBucket[threadId] = localBucket[threadId + 1];
-					localBucket[threadId + 1] = temp;
-				}
-				threadId += offset;
-			}
-		}
-	}
-  CALI_MARK_END(comp_large);
-	
-  CALI_MARK_BEGIN(comp_small);
-	threadId = threadIdx.x;
-	while(threadId < bucketLength) {
-		outData[(blockIdx.x * bucketLength) + threadId] = localBucket[threadId];
-		threadId += offset;
-	}
-  CALI_MARK_END(comp_small);
-
+// CUDA error checking macro
+#define CUDA_CHECK(call) \
+{ \
+    cudaError_t err = call; \
+    if (err != cudaSuccess) \
+    { \
+        std::cerr << "CUDA error in file '" << __FILE__ \
+                  << "' in line " << __LINE__ << ": " \
+                  << cudaGetErrorString(err) << std::endl; \
+        exit(EXIT_FAILURE); \
+    } \
 }
 
-void sampleSort(float *values, float outValues){
-  float *dev_values, *dev_outValues;
-  size_t size = inputSize * sizeof(float);
-  size_t outSize = bucketSize * num_blocks sizeof(float);
+// CUDA kernel to perform sample sort
+__global__ void sampleSort(float* d_data, float* d_sortedData, float* d_samples, int numSamples, int size) {
+    // Each block processes a chunk of the input data
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-  cudaMalloc((void**) &dev_values, size);
-	cudaMalloc((void**) &dev_outValues, outSize);
-	cudaMemset(dev_outValues, 0, outSize);
+    // Load data into shared memory
+    extern __shared__ float sharedData[];
+    if (tid < size) {
+        sharedData[threadIdx.x] = d_data[tid];
+    }
+    __syncthreads();
 
-  CALI_MARK_BEGIN(comm);
-  CALI_MARK_BEGIN(comm_large);
-  cudaMemcpy(dev_values, values, size, cudaMemcpyHostToDevice);
-  CALI_MARK_END(comm_large);
-  CALI_MARK_END(comm);
+    // Each thread sorts its chunk using insertion sort
+    for (int i = 1; i < blockDim.x; ++i) {
+        float key = sharedData[i];
+        int j = i - 1;
+        while (j >= 0 && sharedData[j] > key) {
+            sharedData[j + 1] = sharedData[j];
+            --j;
+        }
+        sharedData[j + 1] = key;
+    }
+    __syncthreads();
 
-  CALI_MARK_BEGIN(comp);
-	sampleSortKernel<<<num_blocks, num_threads>>>(dev_values, dev_outValues, inputSize);
-  CALI_MARK_END(comp);
+    // Each block selects numSamples - 1 evenly spaced samples
+    if (threadIdx.x == 0) {
+        for (int i = 0; i < numSamples - 1; ++i) {
+            d_samples[blockIdx.x * (numSamples - 1) + i] = sharedData[i * blockDim.x];
+        }
+    }
+    __syncthreads();
 
+    // The first block selects global samples from its samples
+    if (blockIdx.x == 0 && threadIdx.x < numSamples - 1) {
+        d_samples[numSamples * gridDim.x + threadIdx.x] = d_samples[threadIdx.x * gridDim.x];
+    }
+    __syncthreads();
 
-  CALI_MARK_BEGIN(comm);
-  CALI_MARK_BEGIN(comm_large);
-	cudaMemcpy(outValues, d_output, out_size, cudaMemcpyDeviceToHost);
-  CALI_MARK_END(comm_large);
-  CALI_MARK_END(comm);
+    // All blocks use the selected samples to partition their data
+    int left = 0;
+    int right = (tid < size) ? blockDim.x - 1 : 0;
+    while (left <= right) {
+        int mid = (left + right) / 2;
+        if (sharedData[mid] <= d_samples[threadIdx.x]) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    __syncthreads();
 
-  cudaFree(dev_values);
-  cudaFree(dev_outValues);
+    // Store the sorted data into global memory
+    if (tid < size) {
+        d_sortedData[tid] = sharedData[left];
+    }
 }
 
-void main(int argc, char *argv[]){
+int main(int argc, char *argv[]){
     num_threads = atoi(argv[1]);
     inputSize = atoi(argv[2]);
     inputType = argv[3];
-    num_blocks = inputSize/num_threads;
-    bucketSize = inputSize/num_blocks;
+    int numSamples = 10;
+    num_blocks = (inputSize + num_threads - 1) / num_threads;
 
     //cali config manager
     cali::ConfigManager mgr;
     mgr.start();
 
-    float *values = (float*) malloc(inputSize * sizeof(float));
-    float *outValues = (float*) malloc(inputSize * sizeof(float));
-
+    float* h_data = new float[inputSize];
     CALI_MARK_BEGIN(data_init);
-    data_init(values);
+    dataInit(h_data);
     CALI_MARK_END(data_init);
+    
+    // Allocate device memory
+    float* d_data;
+    float* d_sortedData;
+    float* d_samples;
+    CUDA_CHECK(cudaMalloc((void**)&d_data, inputSize * sizeof(float)));
+    CUDA_CHECK(cudaMalloc((void**)&d_sortedData, inputSize * sizeof(float)));
+    CUDA_CHECK(cudaMalloc((void**)&d_samples, numSamples * num_blocks * sizeof(float)));
 
-    sampleSort(values, outValues);
+    // Copy data from host to device
+    CALI_MARK_BEGIN(comm);
+    CALI_MARK_BEGIN(comm_large);
+    CUDA_CHECK(cudaMemcpy(d_data, h_data, inputSize * sizeof(float), cudaMemcpyHostToDevice));
+    CALI_MARK_END(comm_large);
+    CALI_MARK_END(comm);
+
+    // Set up grid and block dimensions
+    dim3 blockDim(num_threads);
+    dim3 gridDim(num_blocks);
+
+    // Perform sample sort on GPU
+    CALI_MARK_BEGIN(comp);
+    CALI_MARK_BEGIN(comp_large);
+    sampleSort<<<gridDim, blockDim, num_threads * sizeof(float)>>>(d_data, d_sortedData, d_samples, numSamples, inputSize);
+    CALI_MARK_END(comp_large);
+    CALI_MARK_END(comp);
+
+    // Copy sorted data from device to host
+    CALI_MARK_BEGIN(comm);
+    CALI_MARK_BEGIN(comm_large);
+    CUDA_CHECK(cudaMemcpy(h_data, d_sortedData, inputSize * sizeof(float), cudaMemcpyDeviceToHost));
+    CALI_MARK_END(comm_large);
+    CALI_MARK_END(comm);
 
     CALI_MARK_BEGIN(correctness_check);
-    correctness_check(outValues);
+    correctnessCheck(h_data);
     CALI_MARK_END(correctness_check);
 
     adiak::init(NULL);
@@ -242,8 +236,16 @@ void main(int argc, char *argv[]){
     adiak::value("num_threads", num_threads); // The number of CUDA or OpenMP threads
     adiak::value("num_blocks", num_blocks); // The number of CUDA blocks 
     adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)
-    adiak::value("implementation_source", "online") // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
+    adiak::value("implementation_source", "AI+Handwritten"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
+
+    // Clean up
+    delete[] h_data;
+    CUDA_CHECK(cudaFree(d_data));
+    CUDA_CHECK(cudaFree(d_sortedData));
+    CUDA_CHECK(cudaFree(d_samples));
     mgr.stop();
     mgr.flush();
+
+    return 0;
 }
 

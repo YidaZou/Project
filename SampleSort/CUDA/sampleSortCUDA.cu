@@ -118,7 +118,7 @@ __global__ void sampleSortKernel(float *values, float *outValues, float* inputSi
 	float temp;
 	
 	if(threadId == 0)
-		localCount = 0;
+		localCount = 0;l
 
 	__syncthreads();
 

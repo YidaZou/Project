@@ -23,11 +23,11 @@ We will communicate via iMessage.
 Algorithms we will implement:
 
 - Sample Sort (MPI)
-- Sample Sort (MPI + CUDA)
+- Sample Sort (CUDA)
 - Merge Sort (MPI)
-- Merge Sort (MPI + CUDA)
+- Merge Sort (CUDA)
 - Bitonic Sort (MPI)
-- Bitonic Sort (MPI + CUDA)
+- Bitonic Sort (CUDA)
 
 We will compare the performance of these three algorithms with the metrics stated in the project topic.
 

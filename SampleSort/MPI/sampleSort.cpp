@@ -66,14 +66,43 @@ int main(int argc, char** argv) {
     CALI_MARK_END("data_init");
   }
 
+  CALI_MARK_BEGIN("comm");
+  CALI_MARK_BEGIN("comm_small");
+
   MPI_Bcast(&global_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+  CALI_MARK_END("comm");
+  CALI_MARK_END("comm_small");
+
   int block_size = global_size / size;
   int* block_array = (int*) malloc (sizeof(int) * block_size);
 
+  CALI_MARK_BEGIN("comm");
+  CALI_MARK_BEGIN("comm_large");
+
   MPI_Scatter(global_array, block_size, MPI_INT, block_array, block_size, MPI_INT, 0, MPI_COMM_WORLD);
 
+  CALI_MARK_END("comm");
+  CALI_MARK_END("comm_large");
+
+  CALI_MARK_BEGIN("comp");
+  CALI_MARK_BEGIN("comp_large");
+
   qsort((char*) block_array, block_size, sizeof(int), comparable);
+
+  CALI_MARK_END("comp");
+  CALI_MARK_END("comp_large");
+
+  CALI_MARK_BEGIN("comm");
+  CALI_MARK_BEGIN("comm_large");
+
   MPI_Gather(block_array, global_size, MPI_INT, global_array, global_size, MPI_INT, 0, MPI_COMM_WORLD);
+
+  CALI_MARK_END("comm");
+  CALI_MARK_END("comm_large");
+
+  CALI_MARK_BEGIN("comp");
+  CALI_MARK_BEGIN("comp_small");
 
   if (size != global_size) {
     splitters = (int*) malloc (sizeof(int) * (size - 1));
@@ -83,20 +112,46 @@ int main(int argc, char** argv) {
     }
   }
 
+  CALI_MARK_END("comp");
+  CALI_MARK_END("comp_small");
+
+  CALI_MARK_BEGIN("comm");
+  CALI_MARK_BEGIN("comm_small");
+
   int* global_splitters = (int*) maloc (sizeof(int) * size * (size - 1));
   MPI_Gather(splitters, size - 1, MPI_INT, global_splitters, size - 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+  CALI_MARK_END("comm");
+  CALI_MARK_END("comm_small");
+
   if (rank == 0) {
+
+    CALI_MARK_BEGIN("comp");
+    CALI_MARK_BEGIN("comp_small");
+
     qsort((char*) global_splitters, size * (size - 1) sizeof(int), comparable);
 
     for (int i = 0; i < size - 1l i++) {
       splitters[i] = global_splitters[(size - 1) * (i + 1)];
     }
+
+    CALI_MARK_END("comp");
+    CALI_MARK_END("comp_small");
   }
+
+  CALI_MARK_BEGIN("comm");
+  CALI_MARK_BEGIN("comm_small");
 
   MPI_Bcast(splitters, size - 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  int* buckets (int*) malloc (sizeof(int) * (global_size + size));
+  CALI_MARK_END("comm");
+  CALI_MARK_END("comm_small");
+
+  int* buckets = (int*) malloc (sizeof(int) * (global_size + size));
+
+
+  CALI_MARK_BEGIN("comp");
+  CALI_MARK_BEGIN("comp_large");
 
   int j = 0;
   int k = 1;
@@ -118,6 +173,12 @@ int main(int argc, char** argv) {
 
   buckets[(block_size + 1) * j] = k - 1;
 
+  CALI_MARK_END("comp");
+  CALI_MARK_END("comp_large");
+
+  CALI_MARK_BEGIN("comm");
+  CALI_MARK_BEGIN("comm_large");
+
   int* bucket_buf = (int*) malloc (sizeof (int) * (global_size + size));
   MPI_Alltoall(buckets, block_size + 1, MPI_INT, bucket_buf, block_size + 1, MPI_INT, MPI_COMM_WORLD);
 
@@ -132,14 +193,32 @@ int main(int argc, char** argv) {
     local_bucket[0] = count - 1;
   }
 
+  CALI_MARK_END("comm");
+  CALI_MARK_END("comm_large");
+
+  CALI_MARK_BEGIN("comp");
+  CALI_MARK_BEGIN("comp_large");
+
   int elements_to_sort_count = local_bucket[0];
   qsort((char *) &local_bucket[1], elements_to_sort_count, sizeof(int), comparable);
+
+  CALI_MARK_END("comp");
+  CALI_MARK_END("comp_large");
+
+  CALI_MARK_BEGIN("comm");
+  CALI_MARK_BEGIN("comm_large");
 
   int* output_buf;
   if (rank == 0) {
     output_buf = (int *) malloc (sizeof(int) * 2 * global_size);
   }
   MPI_Gather (local_bucket, 2 * block_size, MPI_INT, output_buf, 2 * block_size, MPI_INT, 0, MPI_COMM_WORLD);
+
+  CALI_MARK_END("comm");
+  CALI_MARK_END("comm_large");
+
+  CALI_MARK_BEGIN("comp");
+  CALI_MARK_BEGIN("comp_large");
 
   if (rank == 0) {
     count = 0;
@@ -150,6 +229,9 @@ int main(int argc, char** argv) {
       }
     }
   }
+
+  CALI_MARK_END("comp");
+  CALI_MARK_END("comp_large");
 
   // Flush Caliper output before finalizing MPI
   mgr.stop();

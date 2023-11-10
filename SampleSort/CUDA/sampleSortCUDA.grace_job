@@ -29,4 +29,4 @@ module load GCCcore/7.3.0
 
 CALI_CONFIG="spot(output=cali_files/${Algorithm}-${ProgrammingModel}-${num_threads}-${inputSize}-${inputType}.cali), \
     cuda.gputime" \
-./bitonic $num_threads $num_vals
+./sampleSortCUDA $num_threads $inputSize $inputType

@@ -12,6 +12,7 @@ int num_threads;
 int num_blocks;
 int inputSize;
 int bucketSize;
+char* inputType;
 
 const char* data_init = "data_init";
 const char* correctness_check = "correctness_check";
@@ -27,12 +28,82 @@ float random_float()
   return (float)rand()/(float)RAND_MAX;
 }
 
-void array_fill(float *arr, int length)
+void array_fill_random(float *arr, int length)
 {
   srand(time(NULL));
   int i;
   for (i = 0; i < length; ++i) {
     arr[i] = random_float();
+  }
+}
+
+void array_fill_sorted(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  for (i = 0; i < length; ++i) {
+    arr[i] = i;
+  }
+}
+
+void array_fill_reverseSorted(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  for (i = 0; i < length; ++i) {
+    arr[i] = length-1 - i;
+  }
+}
+
+void array_fill_reverseSorted(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  for (i = 0; i < length; ++i) {
+    arr[i] = length-1 - i;
+  }
+}
+
+void array_fill_1perturbed(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  int perturb = length/100;
+  for (i = 0; i < length; ++i) {
+    if(i % perturb == 0)
+      arr[i] = random_float();
+    else
+      arr[i] = i;
+  }
+}
+
+void correctness_check(float *outValues){
+    //check if sorted
+    for(int i = 0; i < inputSize - 1; i++){
+        if(outValues[i] > outValues[i+1]){
+            printf("Error: Not sorted\n");
+            return;
+        }
+    }
+    printf("Success: Sorted\n");
+}
+
+void data_init(float *values){
+  if(inputType == "Random"){
+    array_fill_random(values, inputSize);
+  }
+  else if(inputType == "Sorted"){
+    array_fill_sorted(values, inputSize);
+  }
+  else if(inputType == "ReverseSorted"){
+    array_fill_reverseSorted(values, inputSize);
+  }
+  else if(inputType == "1%perturbed"){
+    array_fill_1perturbed(values, inputSize);
+  }
+  else{
+    printf("Error: Invalid input type\n");
+    return;
   }
 }
 
@@ -132,25 +203,10 @@ void sampleSort(float *values, float outValues){
   cudaFree(dev_outValues);
 }
 
-void correctness_check(float *outValues){
-    //check if sorted
-    for(int i = 0; i < inputSize - 1; i++){
-        if(outValues[i] > outValues[i+1]){
-            printf("Error: Not sorted\n");
-            return;
-        }
-    }
-    printf("Success: Sorted\n");
-}
-
-void data_init(float *values){
-    array_fill(values, inputSize);
-}
-
 void main(int argc, char *argv[]){
     num_threads = atoi(argv[1]);
     inputSize = atoi(argv[2]);
-    inputSize = atoi(argv[3]);
+    inputType = argv[3];
     num_blocks = inputSize/num_threads;
     bucketSize = inputSize/num_blocks;
 
@@ -181,7 +237,7 @@ void main(int argc, char *argv[]){
     adiak::value("Datatype", "float"); // The datatype of input elements (e.g., double, int, float)
     adiak::value("SizeOfDatatype", sizeof(float)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
     adiak::value("InputSize", inputSize); // The number of elements in input dataset (1000)
-    adiak::value("InputType", "Random"); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
+    adiak::value("InputType", inputType); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
     //adiak::value("num_procs", num_procs); // The number of processors (MPI ranks)
     adiak::value("num_threads", num_threads); // The number of CUDA or OpenMP threads
     adiak::value("num_blocks", num_blocks); // The number of CUDA blocks 

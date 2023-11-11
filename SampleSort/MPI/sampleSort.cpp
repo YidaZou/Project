@@ -7,14 +7,63 @@
 
 #include <adiak.hpp>
 
-int rank, size;
+void array_fill_random(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  for (i = 0; i < length; ++i) {
+    arr[i] = random_float();
+  }
+}
 
-void fillRandomArray(int* array, int size) {
-    srand(time(NULL));  // Seed the random number generator with the current time
+void array_fill_sorted(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  for (i = 0; i < length; ++i) {
+    arr[i] = i;
+  }
+}
 
-    for (int i = 0; i < size; i++) {
-        array[i] = rand();  // Generate random integers for the array
-    }
+void array_fill_reverseSorted(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  for (i = 0; i < length; ++i) {
+    arr[i] = length-1 - i;
+  }
+}
+
+void array_fill_1perturbed(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  int perturb = length/100;
+  for (i = 0; i < length; ++i) {
+    if(i % perturb == 0)
+      arr[i] = random_float();
+    else
+      arr[i] = i;
+  }
+}
+
+void dataInit(float *values, int inputSize){
+  if(inputType == "Random"){
+    array_fill_random(values, inputSize);
+  }
+  else if(inputType == "Sorted"){
+    array_fill_sorted(values, inputSize);
+  }
+  else if(inputType == "ReverseSorted"){
+    array_fill_reverseSorted(values, inputSize);
+  }
+  else if(inputType == "1%perturbed"){
+    array_fill_1perturbed(values, inputSize);
+  }
+  else{
+    printf("Error: Invalid input type\n");
+    return;
+  }
 }
 
 // Function to print an array
@@ -38,10 +87,17 @@ void correctness_check(int arr[], int size) {
 }
 
 static int comparable(const void *i, const void *j) {
-  return (*(int *)i) - (*(int *)j);
+  return (*(float *)i) - (*(float *)j);
 }
 
 int main(int argc, char** argv) {
+
+  int rank, size, input_size;
+  std::string input_type;
+
+  size = atoi(argv[1]);
+  input_size = atoi(argv[2]);
+  input_type = argv[3];
 
   CALI_CXX_MARK_FUNCTION;
   CALI_MARK_BEGIN("main");
@@ -53,15 +109,14 @@ int main(int argc, char** argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  int global_size = atoi(argv[1]);
-  int* global_array;
-  int* splitters;
+  float* global_array;
+  float* splitters;
 
   if (rank == 0) {
     CALI_MARK_BEGIN("data_init");
 
-    global_array = (int *) malloc (sizeof(int) * global_size);
-    fillRandomArray(global_array, global_size);
+    global_array = (float *) malloc (sizeof(float) * input_size);
+    dataInit(global_array, input_size);
 
     CALI_MARK_END("data_init");
   }
@@ -69,13 +124,13 @@ int main(int argc, char** argv) {
   CALI_MARK_BEGIN("comm");
   CALI_MARK_BEGIN("comm_small");
 
-  MPI_Bcast(&global_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&input_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   CALI_MARK_END("comm");
   CALI_MARK_END("comm_small");
 
-  int block_size = global_size / size;
-  int* block_array = (int*) malloc (sizeof(int) * block_size);
+  int block_size = input_size / size;
+  float* block_array = (float*) malloc (sizeof(float) * block_size);
 
   CALI_MARK_BEGIN("comm");
   CALI_MARK_BEGIN("comm_large");
@@ -88,7 +143,7 @@ int main(int argc, char** argv) {
   CALI_MARK_BEGIN("comp");
   CALI_MARK_BEGIN("comp_large");
 
-  qsort((char*) block_array, block_size, sizeof(int), comparable);
+  qsort((char*) block_array, block_size, sizeof(float), comparable);
 
   CALI_MARK_END("comp");
   CALI_MARK_END("comp_large");
@@ -96,7 +151,7 @@ int main(int argc, char** argv) {
   CALI_MARK_BEGIN("comm");
   CALI_MARK_BEGIN("comm_large");
 
-  MPI_Gather(block_array, global_size, MPI_INT, global_array, global_size, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Gather(block_array, input_size, MPI_INT, global_array, input_size, MPI_INT, 0, MPI_COMM_WORLD);
 
   CALI_MARK_END("comm");
   CALI_MARK_END("comm_large");
@@ -104,11 +159,11 @@ int main(int argc, char** argv) {
   CALI_MARK_BEGIN("comp");
   CALI_MARK_BEGIN("comp_small");
 
-  if (size != global_size) {
-    splitters = (int*) malloc (sizeof(int) * (size - 1));
+  if (size != input_size) {
+    splitters = (float*) malloc (sizeof(float) * (size - 1));
 
     for (int i = 0l i < size - 1; i++) {
-      splitters[i] = block_array[global_size / (size * size) * (i + 1)];
+      splitters[i] = block_array[input_size / (size * size) * (i + 1)];
     }
   }
 
@@ -118,7 +173,7 @@ int main(int argc, char** argv) {
   CALI_MARK_BEGIN("comm");
   CALI_MARK_BEGIN("comm_small");
 
-  int* global_splitters = (int*) maloc (sizeof(int) * size * (size - 1));
+  float* global_splitters = (float*) maloc (sizeof(float) * size * (size - 1));
   MPI_Gather(splitters, size - 1, MPI_INT, global_splitters, size - 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   CALI_MARK_END("comm");
@@ -129,7 +184,7 @@ int main(int argc, char** argv) {
     CALI_MARK_BEGIN("comp");
     CALI_MARK_BEGIN("comp_small");
 
-    qsort((char*) global_splitters, size * (size - 1) sizeof(int), comparable);
+    qsort((char*) global_splitters, size * (size - 1) sizeof(float), comparable);
 
     for (int i = 0; i < size - 1l i++) {
       splitters[i] = global_splitters[(size - 1) * (i + 1)];
@@ -147,7 +202,7 @@ int main(int argc, char** argv) {
   CALI_MARK_END("comm");
   CALI_MARK_END("comm_small");
 
-  int* buckets = (int*) malloc (sizeof(int) * (global_size + size));
+  float* buckets = (float*) malloc (sizeof(float) * (input_size + size));
 
 
   CALI_MARK_BEGIN("comp");
@@ -179,16 +234,16 @@ int main(int argc, char** argv) {
   CALI_MARK_BEGIN("comm");
   CALI_MARK_BEGIN("comm_large");
 
-  int* bucket_buf = (int*) malloc (sizeof (int) * (global_size + size));
+  float* bucket_buf = (float*) malloc (sizeof (int) * (input_size + size));
   MPI_Alltoall(buckets, block_size + 1, MPI_INT, bucket_buf, block_size + 1, MPI_INT, MPI_COMM_WORLD);
 
-  int* local_bucket = (int*) malloc (sizeof(int) * 2 * global_size / size);
+  float* local_bucket = (float*) malloc (sizeof(float) * 2 * input_size / size);
 
   int count = 1;
   for (j = 0; j < size; j++) {
     k = 1;
-    for (int i = 0; i < bucket_buf[(global_size / size + 1) * j]; i++) {
-      local_bucket[count++] = bucket_buf[(global_size / size + 1) * j + k++];
+    for (int i = 0; i < bucket_buf[(input_size / size + 1) * j]; i++) {
+      local_bucket[count++] = bucket_buf[(input_size / size + 1) * j + k++];
     }
     local_bucket[0] = count - 1;
   }
@@ -200,7 +255,7 @@ int main(int argc, char** argv) {
   CALI_MARK_BEGIN("comp_large");
 
   int elements_to_sort_count = local_bucket[0];
-  qsort((char *) &local_bucket[1], elements_to_sort_count, sizeof(int), comparable);
+  qsort((char *) &local_bucket[1], elements_to_sort_count, sizeof(float), comparable);
 
   CALI_MARK_END("comp");
   CALI_MARK_END("comp_large");
@@ -208,9 +263,9 @@ int main(int argc, char** argv) {
   CALI_MARK_BEGIN("comm");
   CALI_MARK_BEGIN("comm_large");
 
-  int* output_buf;
+  float* output_buf;
   if (rank == 0) {
-    output_buf = (int *) malloc (sizeof(int) * 2 * global_size);
+    output_buf = (float *) malloc (sizeof(float) * 2 * input_size);
   }
   MPI_Gather (local_bucket, 2 * block_size, MPI_INT, output_buf, 2 * block_size, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -224,8 +279,8 @@ int main(int argc, char** argv) {
     count = 0;
     for (j = 0; j < size; j++) {
       k = 1;
-      for(int i = 0; i < output_buf[(2 * global_size / size) * j]; i++) {
-        global_array[count++] = output_buf[(2 * global_size / size) * j + k++];
+      for(int i = 0; i < output_buf[(2 * input_size / size) * j]; i++) {
+        global_array[count++] = output_buf[(2 * input_size / size) * j + k++];
       }
     }
   }
@@ -240,7 +295,7 @@ int main(int argc, char** argv) {
   MPI_Finalize();
 
   CALI_MARK_BEGIN("correctness_check");
-  correctness_check(global_array, global_size);
+  correctness_check(global_array, input_size);
   CALI_MARK_END("correctness_check");
 
   adiak::init(NULL);
@@ -250,13 +305,13 @@ int main(int argc, char** argv) {
   adiak::clustername();   // Name of the cluster
   adiak::value("Algorithm", "SampleSort"); // The name of the algorithm you are using (e.g., "MergeSort", "BitonicSort")
   adiak::value("ProgrammingModel", "MPI"); // e.g., "MPI", "CUDA", "MPIwithCUDA"
-  adiak::value("Datatype", int); // The datatype of input elements (e.g., double, int, float)
-  adiak::value("SizeOfDatatype", sizeof(int)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
-  adiak::value("InputSize", global_size); // The number of elements in input dataset (1000)
-  adiak::value("InputType", "Random"); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
-  adiak::value("num_procs", size); // The number of processors (MPI ranks)
+  adiak::value("Datatype", "float"); // The datatype of input elements (e.g., double, int, float)
+  adiak::value("SizeOfDatatype", sizeof(float)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
+  adiak::value("InputSize", inputSize); // The number of elements in input dataset (1000)
+  adiak::value("InputType", inputType); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
+  adiak::value("num_procs", num_procs); // The number of processors (MPI ranks)
   adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)
-  adiak::value("implementation_source", "Online") // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
+  adiak::value("implementation_source", "Online"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
 
   CALI_MARK_END("main");
   return 0;

@@ -154,8 +154,6 @@ int main(int argc, char *argv[])
   bitonic_sort(values); /* Inplace */
   stop = clock();
 
-  print_elapsed(start, stop);
-
   adiak::init(NULL);
   adiak::user();
   adiak::launchdate();
@@ -167,7 +165,6 @@ int main(int argc, char *argv[])
   adiak::value("num_vals", NUM_VALS);
   adiak::value("program_name", "cuda_bitonic_sort");
   adiak::value("datatype_size", sizeof(float));
-  adiak::value("effective_bandwidth (GB/s)", effective_bandwidth_gb_s);
   adiak::value("bitonic_sort_step_time", bitonic_sort_step_time);
   adiak::value("cudaMemcpy_host_to_device_time", cudaMemcpy_host_to_device_time);
   adiak::value("cudaMemcpy_device_to_host_time", cudaMemcpy_device_to_host_time);

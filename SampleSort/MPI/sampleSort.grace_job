@@ -18,10 +18,11 @@
 #
 processes=$1
 array_size=$2
+input_type=$3
 
 module load intel/2020b       # load Intel software stack
 module load CMake/3.12.1
 
-CALI_CONFIG="spot(output=p${processes}-a${array_size}.cali, \
+CALI_CONFIG="spot(output=p${processes}-a${array_size}-${input_type}.cali, \
     time.variance)" \
-mpirun -np $processes ./sampleSort $array_size
+mpirun -np $processes ./sampleSort $processes $array_size $input_type

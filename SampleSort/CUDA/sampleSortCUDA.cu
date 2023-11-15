@@ -7,11 +7,13 @@
 #include <adiak.hpp>
 #include <cuda_runtime.h>
 #include <cuda.h>
+#include <string.h>
+#include <iostream>
 
 int THREADS;
 int BLOCKS;
 int NUM_VALS;
-int TYPE;   //1-Random, 2-Sorted, 3-ReverseSorted, 4-1%perturbed
+std::string TYPE;
 
 const char* data_init = "data_init";
 const char* correctness_check = "correctness_check";
@@ -21,7 +23,7 @@ const char* comm_large = "comm_large";
 const char* comp = "comp";
 const char* comp_small = "comp_small";
 const char* comp_large = "comp_large";
-const char* cudaMemcpy = "cudaMemcpy";
+const char* cudaMemcpy_region = "cudaMemcpy";
 
 float random_float()
 {
@@ -70,8 +72,9 @@ void array_fill_1perturbed(float *arr, int length)
 
 void correctnessCheck(float *outValues){
   //check if sorted
-  for(int i = 0; i < NUM_VALS - 1; i++){
+  for(int i = 0; i < NUM_VALS-1; i++){
     if(outValues[i] > outValues[i+1]){
+      std::cout << outValues[i] << ' '<< outValues[i+1] << ' ';
       printf("Error: Not sorted\n");
       return;
     }
@@ -80,16 +83,16 @@ void correctnessCheck(float *outValues){
 }
 
 void dataInit(float *values, float NUM_VALS){
-  if(TYPE == 1){
+  if(TYPE == "Random"){
     array_fill_random(values, NUM_VALS);
   }
-  else if(TYPE == 2){
+  else if(TYPE == "Sorted"){
     array_fill_sorted(values, NUM_VALS);
   }
-  else if(TYPE == 3){
+  else if(TYPE == "ReverseSorted"){
     array_fill_reverseSorted(values, NUM_VALS);
   }
-  else if(TYPE == 4){
+  else if(TYPE == "1perturbed"){
     array_fill_1perturbed(values, NUM_VALS);
   }
   else{
@@ -267,9 +270,9 @@ void sample_sort(float* values) {
 
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_large);
-  CALI_MARK_BEGIN(cudaMemcpy);
+  CALI_MARK_BEGIN(cudaMemcpy_region);
   cudaMemcpy(dev_values, values, size, cudaMemcpyHostToDevice);
-  CALI_MARK_END(cudaMemcpy);
+  CALI_MARK_END(cudaMemcpy_region);
   CALI_MARK_END(comm_large);
   CALI_MARK_END(comm);
 
@@ -293,9 +296,9 @@ void sample_sort(float* values) {
   float *final_samples = (float*)malloc(allBlocksSize);
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_small);
-  CALI_MARK_BEGIN(cudaMemcpy);
+  CALI_MARK_BEGIN(cudaMemcpy_region);
   cudaMemcpy(final_samples, all_samples, allBlocksSize, cudaMemcpyDeviceToHost);
-  CALI_MARK_END(cudaMemcpy);
+  CALI_MARK_END(cudaMemcpy_region);
   CALI_MARK_END(comm_small);
   CALI_MARK_END(comm);
 
@@ -314,9 +317,9 @@ void sample_sort(float* values) {
   cudaMalloc((void**)&final_pivots, pivotSize);
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_small);
-  CALI_MARK_BEGIN(cudaMemcpy);
+  CALI_MARK_BEGIN(cudaMemcpy_region);
   cudaMemcpy(final_pivots, pivots, pivotSize, cudaMemcpyHostToDevice);
-  CALI_MARK_END(cudaMemcpy);
+  CALI_MARK_END(cudaMemcpy_region);
   CALI_MARK_END(comm_small);
   CALI_MARK_END(comm);
 
@@ -334,13 +337,13 @@ void sample_sort(float* values) {
 
   cudaDeviceSynchronize();
 
-  //cCommunicate number of incoming values in each block
+  //Communicate number of incoming values in each block
   int* incoming_values = (int*)malloc(numBlocks2Size);
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_small);
-  CALI_MARK_BEGIN(cudaMemcpy);
+  CALI_MARK_BEGIN(cudaMemcpy_region);
   cudaMemcpy(incoming_values, numIncomingValues, numBlocks2Size, cudaMemcpyDeviceToHost);
-  CALI_MARK_END(cudaMemcpy);
+  CALI_MARK_END(cudaMemcpy_region);
   CALI_MARK_END(comm_small);
   CALI_MARK_END(comm);
 
@@ -358,9 +361,9 @@ void sample_sort(float* values) {
   //Communicate final values
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_small);
-  CALI_MARK_BEGIN(cudaMemcpy);
+  CALI_MARK_BEGIN(cudaMemcpy_region);
   cudaMemcpy(final_values, final_counts, finalBlockSize, cudaMemcpyHostToDevice);
-  CALI_MARK_END(cudaMemcpy);
+  CALI_MARK_END(cudaMemcpy_region);
   CALI_MARK_END(comm_small);
   CALI_MARK_END(comm);
 
@@ -390,9 +393,9 @@ void sample_sort(float* values) {
   //Copy sorted array back to values
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_large);
-  CALI_MARK_BEGIN(cudaMemcpy);
+  CALI_MARK_BEGIN(cudaMemcpy_region);
   cudaMemcpy(values, final_sorted_values, finalSize, cudaMemcpyDeviceToHost);
-  CALI_MARK_END(cudaMemcpy);
+  CALI_MARK_END(cudaMemcpy_region);
   CALI_MARK_END(comm_large);
   CALI_MARK_END(comm);
 
@@ -410,27 +413,7 @@ void sample_sort(float* values) {
 int main(int argc, char *argv[]) {
   THREADS = atoi(argv[1]);
   NUM_VALS = atoi(argv[2]);
-  TYPE = 1;
-  /*
-  TYPE = atoi(argv[3]);
-  char *typeString = new char[100];
-  if(TYPE == 1){
-    strcpy(typeString,"Random");
-  }
-  else if(TYPE == 2){
-    strcpy(typeString,"Sorted");
-  }
-  else if(TYPE == 3){
-    strcpy(typeString,"ReverseSorted");
-  }
-  else if(TYPE == 4){
-    strcpy(typeString,"1%perturbed");
-  }
-  else{
-    printf("Error: Invalid input type\n");
-    return 0;
-  }
-  */
+  TYPE = argv[3];
   BLOCKS = NUM_VALS / THREADS;
 
   //cali config manager
@@ -459,7 +442,7 @@ int main(int argc, char *argv[]) {
   adiak::value("Datatype", "float"); // The datatype of input elements (e.g., double, int, float)
   adiak::value("SizeOfDatatype", sizeof(float)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
   adiak::value("InputSize", NUM_VALS); // The number of elements in input dataset (1000)
-  adiak::value("InputType", "Random"); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
+  adiak::value("InputType", TYPE); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
   //adiak::value("num_procs", num_procs); // The number of processors (MPI ranks)
   adiak::value("num_threads", THREADS); // The number of CUDA or OpenMP threads
   adiak::value("num_blocks", BLOCKS); // The number of CUDA blocks 

@@ -4,8 +4,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 
 #include <adiak.hpp>
+
+float random_float()
+{
+  return (float)rand()/(float)RAND_MAX;
+}
 
 void array_fill_random(float *arr, int length)
 {
@@ -47,7 +53,7 @@ void array_fill_1perturbed(float *arr, int length)
   }
 }
 
-void dataInit(float *values, int inputSize){
+void dataInit(float *values, std::string inputType, int inputSize){
   if(inputType == "Random"){
     array_fill_random(values, inputSize);
   }
@@ -74,7 +80,7 @@ void printArray(int A[], int size) {
 }
 
 // Check if sorted
-void correctness_check(int arr[], int size) {
+void correctness_check(float arr[], int size) {
   int i;
   for (i = 0; i < size - 1; i++) {
     if (arr[i] > arr[i + 1]) {
@@ -87,7 +93,7 @@ void correctness_check(int arr[], int size) {
 }
 
 static int comparable(const void *i, const void *j) {
-  return (*(float *)i) - (*(float *)j);
+    return round((*(float *)i) - (*(float *)j));
 }
 
 int main(int argc, char** argv) {
@@ -116,7 +122,7 @@ int main(int argc, char** argv) {
     CALI_MARK_BEGIN("data_init");
 
     global_array = (float *) malloc (sizeof(float) * input_size);
-    dataInit(global_array, input_size);
+    dataInit(global_array, input_type, input_size);
 
     CALI_MARK_END("data_init");
   }
@@ -162,7 +168,7 @@ int main(int argc, char** argv) {
   if (size != input_size) {
     splitters = (float*) malloc (sizeof(float) * (size - 1));
 
-    for (int i = 0l i < size - 1; i++) {
+    for (int i = 0; i < size - 1; i++) {
       splitters[i] = block_array[input_size / (size * size) * (i + 1)];
     }
   }
@@ -173,7 +179,7 @@ int main(int argc, char** argv) {
   CALI_MARK_BEGIN("comm");
   CALI_MARK_BEGIN("comm_small");
 
-  float* global_splitters = (float*) maloc (sizeof(float) * size * (size - 1));
+  float* global_splitters = (float*) malloc (sizeof(float) * size * (size - 1));
   MPI_Gather(splitters, size - 1, MPI_INT, global_splitters, size - 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   CALI_MARK_END("comm");
@@ -184,9 +190,9 @@ int main(int argc, char** argv) {
     CALI_MARK_BEGIN("comp");
     CALI_MARK_BEGIN("comp_small");
 
-    qsort((char*) global_splitters, size * (size - 1) sizeof(float), comparable);
+    qsort((char*) global_splitters, size * (size - 1), sizeof(float), comparable);
 
-    for (int i = 0; i < size - 1l i++) {
+    for (int i = 0; i < size - 1; i++) {
       splitters[i] = global_splitters[(size - 1) * (i + 1)];
     }
 
@@ -307,9 +313,9 @@ int main(int argc, char** argv) {
   adiak::value("ProgrammingModel", "MPI"); // e.g., "MPI", "CUDA", "MPIwithCUDA"
   adiak::value("Datatype", "float"); // The datatype of input elements (e.g., double, int, float)
   adiak::value("SizeOfDatatype", sizeof(float)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
-  adiak::value("InputSize", inputSize); // The number of elements in input dataset (1000)
-  adiak::value("InputType", inputType); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
-  adiak::value("num_procs", num_procs); // The number of processors (MPI ranks)
+  adiak::value("InputSize", input_size); // The number of elements in input dataset (1000)
+  adiak::value("InputType", input_type); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
+  adiak::value("num_procs", size); // The number of processors (MPI ranks)
   adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)
   adiak::value("implementation_source", "Online"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
 

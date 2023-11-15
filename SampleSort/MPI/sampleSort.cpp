@@ -49,10 +49,11 @@ void dataInit(int *values, std::string inputType, int inputSize) {
         array_fill_sorted(values, inputSize);
     } else if (inputType == "ReverseSorted") {
         array_fill_reverseSorted(values, inputSize);
-    } else if (inputType == "1perturbed") {
+    } else if (inputType == "1Perturbed") {
         array_fill_1perturbed(values, inputSize);
     } else {
         printf("Error: Invalid input type\n");
+		exit(0);
         return;
     }
 }
@@ -76,9 +77,6 @@ static int comparable(const void *i, const void *j) {
 }
 
 int main(int argc, char** argv) {
-    std::string input_type;
-    input_type = argv[3];
-
     CALI_CXX_MARK_FUNCTION;
     CALI_MARK_BEGIN("main");
 
@@ -86,183 +84,194 @@ int main(int argc, char** argv) {
     mgr.start();
 
     // Variable Declarations
-    int Numprocs, MyRank, Root = 0;
-    int i, j, k, NoofElements, NoofElements_Bloc, NoElementsToSort;
+    int numProcs, rank, root = 0;
+    int i, j, k, countElements, countElementsLocal, countElementsToSort;
     int count, temp;
-    int *Input, *InputData;
-    int *Splitter, *AllSplitter;
-    int *Buckets, *BucketBuffer, *LocalBucket;
-    int *OutputBuffer, *Output;
-    FILE *InputFile, *fp;
+    int *input, *inputData;
+    int *splitter, *splitterGlobal;
+    int *buckets, *bucketBuf, *bucketLocal;
+    int *outputBuf, *output;
+	std::string inputType;
+    FILE *inputFile, *fp;
     MPI_Status status;
 
     // Initializing
-    Numprocs = atoi(argv[1]);
+    numProcs = atoi(argv[1]);
 
     MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &Numprocs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &MyRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    // Reading Input
-    if (MyRank == Root) {
-        NoofElements = atoi(argv[2]);
-        Input = (int *)malloc(NoofElements * sizeof(int));
-        if (Input == NULL)
-            printf("Error : Can not allocate memory for Input\n");
-        Output = (int *)malloc(NoofElements * sizeof(int));
-        if (Output == NULL)
-            printf("Error : Can not allocate memory for Output\n");
+    /**** Reading Input ****/
+	printf("Rank %d: Reading Input\n", rank);
 
-        dataInit(Input, input_type, NoofElements);
-    } else {
-        Input = (int *)malloc(sizeof(int));
-        if (Input == NULL)
-            printf("Error : Can not allocate memory for Input\n");
-        Output = (int *)malloc(sizeof(int));
-        if (Output == NULL)
-            printf("Error : Can not allocate memory for Output\n");
-    }
+	if (rank == root){
 
-    // Broadcasting NoofElements
-    MPI_Bcast(&NoofElements, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if ((NoofElements % Numprocs) != 0) {
-        if (MyRank == Root)
-            printf("Number of Elements are not divisible by Numprocs\n");
-        MPI_Finalize();
-        exit(0);
-    }
+		countElements = atoi(argv[2]);
+		input = (int *) malloc (countElements*sizeof(int));
+		if(input == NULL) {
+			printf("Error : Can not allocate memory \n");
+		}
 
-    NoofElements_Bloc = NoofElements / Numprocs;
-    InputData = (int *)malloc(NoofElements_Bloc * sizeof(int));
+		/* Initialise random number generator  */
+		inputType = argv[3];
+		dataInit(input, inputType, countElements);
+		printf ( "\n\n ");
+	}
 
-    MPI_Scatter(Input, NoofElements_Bloc, MPI_INT, InputData, NoofElements_Bloc, MPI_INT, Root, MPI_COMM_WORLD);
+	/**** Sending Data ****/
+	printf("Rank %d: Sending Data\n", rank);
+	MPI_Bcast (&countElements, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	if(( countElements % numProcs) != 0){
+			if(rank == root)
+			printf("Number of Elements are not divisible by Numprocs \n");
+				MPI_Finalize();
+			exit(0);
+	}
 
-    // Sorting Locally
-    printf("Rank %d: Before local sort\n", MyRank);
-    qsort((char *)InputData, NoofElements_Bloc, sizeof(int), comparable);
-    printf("Rank %d: After local sort\n", MyRank);
+	countElementsLocal = countElements / numProcs;
+	inputData = (int *) malloc (countElementsLocal * sizeof (int));
 
-    // Choosing Local Splitters
-    Splitter = (int *)malloc(sizeof(int) * (Numprocs - 1));
-    for (i = 0; i < (Numprocs - 1); i++) {
-        Splitter[i] = InputData[NoofElements / (Numprocs * Numprocs) * (i + 1)];
-    }
+	MPI_Scatter(input, countElementsLocal, MPI_INT, inputData,
+					countElementsLocal, MPI_INT, root, MPI_COMM_WORLD);
 
-    // Gathering Local Splitters at Root
-    AllSplitter = (int *)malloc(sizeof(int) * Numprocs * (Numprocs - 1));
-    MPI_Gather(Splitter, Numprocs - 1, MPI_INT, AllSplitter, Numprocs - 1, MPI_INT, Root, MPI_COMM_WORLD);
+	/**** Sorting Locally ****/
+	printf("Rank %d: Sorting Locally\n", rank);
+	qsort ((char *) inputData, countElementsLocal, sizeof(int), comparable);
 
-    // Choosing Global Splitters
-    if (MyRank == Root) {
-        printf("Root: Before global sort of splitters\n");
-        qsort((char *)AllSplitter, Numprocs * (Numprocs - 1), sizeof(int), comparable);
-        printf("Root: After global sort of splitters\n");
+	/**** Choosing Local Splitters ****/
+	printf("Rank %d: Choosing Local Splitters\n", rank);
+	splitter = (int *) malloc (sizeof (int) * (numProcs-1));
+	for (i=0; i< (numProcs-1); i++){
+			splitter[i] = inputData[countElements/(numProcs*numProcs) * (i+1)];
+	}
 
-        for (i = 0; i < Numprocs - 1; i++)
-            Splitter[i] = AllSplitter[(Numprocs - 1) * (i + 1)];
-    }
+	/**** Gathering Local Splitters at Root ****/
+	printf("Rank %d: Gatherin Local Splitters at Root\n", rank);
+	splitterGlobal = (int *) malloc (sizeof (int) * numProcs * (numProcs-1));
+	MPI_Gather (splitter, numProcs-1, MPI_INT, splitterGlobal, numProcs-1,
+					MPI_INT, root, MPI_COMM_WORLD);
 
-    // Broadcasting Global Splitters
-    MPI_Bcast(Splitter, Numprocs - 1, MPI_INT, 0, MPI_COMM_WORLD);
+	/**** Choosing Global Splitters ****/
+	if (rank == root){
+		printf("Rank %d: Choosing Global Splitters\n", rank);
+		qsort ((char *) splitterGlobal, numProcs*(numProcs-1), sizeof(int), comparable);
 
-    // Creating Numprocs Buckets locally
-    Buckets = (int *)malloc(sizeof(int) * (NoofElements + Numprocs));
+		for (i=0; i<numProcs-1; i++)
+		splitter[i] = splitterGlobal[(numProcs-1)*(i+1)];
+	}
 
-    j = 0;
-    k = 1;
+	/**** Broadcasting Global Splitters ****/
+	printf("Rank %d: Broadcasting Global Splitters\n", rank);
+	MPI_Bcast (splitter, numProcs-1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    for (i = 0; i < NoofElements_Bloc; i++) {
-        if (j < (Numprocs - 1)) {
-            if (InputData[i] < Splitter[j])
-                Buckets[((NoofElements_Bloc + 1) * j) + k++] = InputData[i];
-            else {
-                Buckets[(NoofElements_Bloc + 1) * j] = k - 1;
-                k = 1;
-                j++;
-                i--;
-            }
-        } else
-            Buckets[((NoofElements_Bloc + 1) * j) + k++] = InputData[i];
-    }
-    Buckets[(NoofElements_Bloc + 1) * j] = k - 1;
+	/**** Creating Buckets locally ****/
+	printf("Rank %d: Creating Buckets locally\n", rank);
+	buckets = (int *) malloc (sizeof (int) * (countElements + numProcs));
 
-    // Sending buckets to respective processors
-    BucketBuffer = (int *)malloc(sizeof(int) * (NoofElements + Numprocs));
+	j = 0;
+	k = 1;
 
-    MPI_Alltoall(Buckets, NoofElements_Bloc + 1, MPI_INT, BucketBuffer, NoofElements_Bloc + 1, MPI_INT, MPI_COMM_WORLD);
+	for (i=0; i<countElementsLocal; i++){
+		if(j < (numProcs-1)){
+		if (inputData[i] < splitter[j])
+				buckets[((countElementsLocal + 1) * j) + k++] = inputData[i];
+		else{
+			buckets[(countElementsLocal + 1) * j] = k-1;
+				k=1;
+				j++;
+				i--;
+		}
+		}
+		else
+		buckets[((countElementsLocal + 1) * j) + k++] = inputData[i];
+	}
+	buckets[(countElementsLocal + 1) * j] = k - 1;
 
-    // Rearranging BucketBuffer
-    LocalBucket = (int *)malloc(sizeof(int) * 2 * NoofElements / Numprocs);
+	/**** Sending buckets to respective processors ****/
+	printf("Rank %d: Sending buckets to respective processors\n", rank);
 
-    count = 1;
+	bucketBuf = (int *) malloc (sizeof (int) * (countElements + numProcs));
 
-    for (j = 0; j < Numprocs; j++) {
-        k = 1;
-        for (i = 0; i < BucketBuffer[(NoofElements / Numprocs + 1) * j]; i++)
-            LocalBucket[count++] = BucketBuffer[(NoofElements / Numprocs + 1) * j + k++];
-    }
-    LocalBucket[0] = count - 1;
+	MPI_Alltoall (buckets, countElementsLocal + 1, MPI_INT, bucketBuf,
+						countElementsLocal + 1, MPI_INT, MPI_COMM_WORLD);
 
-    // Sorting Local Buckets using Bubble Sort
-    // qsort((char *)InputData, NoofElements_Bloc, sizeof(int), comparable);
+	/**** Rearranging BucketBuffer ****/
+	printf("Rank %d: Rearranging BucketBuffer\n", rank);
+	bucketLocal = (int *) malloc (sizeof (int) * 2 * countElements / numProcs);
 
-    NoElementsToSort = LocalBucket[0];
-    printf("Rank %d: Before local sort of buckets\n", MyRank);
-    qsort((char *)&LocalBucket[1], NoElementsToSort, sizeof(int), comparable);
-    printf("Rank %d: After local sort of buckets\n", MyRank);
+	count = 1;
 
-    // Gathering sorted sub blocks at root
-    if (MyRank == Root) {
-        OutputBuffer = (int *)malloc(sizeof(int) * 2 * NoofElements);
-        Output = (int *)malloc(sizeof(int) * NoofElements);
-    }
+	for (j=0; j<numProcs; j++) {
+	k = 1;
+		for (i=0; i<bucketBuf[(countElements/numProcs + 1) * j]; i++)
+		bucketLocal[count++] = bucketBuf[(countElements/numProcs + 1) * j + k++];
+	}
+	bucketLocal[0] = count-1;
 
-    MPI_Gather(LocalBucket, 2 * NoofElements_Bloc, MPI_INT, OutputBuffer, 2 * NoofElements_Bloc, MPI_INT, Root, MPI_COMM_WORLD);
+	/**** Sorting Local Buckets using Bubble Sort ****/
+	printf("Rank %d: Sorting Local Buckets using Bubble Sort\n", rank);
+	/*qsort ((char *) InputData, NoofElements_Bloc, sizeof(int), comparable); */
 
-    // Rearranging output buffer
-    if (MyRank == Root) {
-        count = 0;
-        for (j = 0; j < Numprocs; j++) {
-            k = 1;
-            for (i = 0; i < OutputBuffer[(2 * NoofElements / Numprocs) * j]; i++)
-                Output[count++] = OutputBuffer[(2 * NoofElements / Numprocs) * j + k++];
-        }
+	countElementsToSort = bucketLocal[0];
+	qsort ((char *) &bucketLocal[1], countElementsToSort, sizeof(int), comparable);
 
-        // Printing the output
-        if ((fp = fopen("sort.out", "w")) == NULL) {
-            printf("Can't Open Output File\n");
-            exit(0);
-        }
+	/**** Gathering sorted sub blocks at root ****/
+	if(rank == root) {
+		printf("Rank %d: Gathering sorted sub blocks at root\n", rank);
+			outputBuf = (int *) malloc (sizeof(int) * 2 * countElements);
+			output = (int *) malloc (sizeof (int) * countElements);
+	}
 
-        fprintf(fp, "Number of Elements to be sorted : %d\n", NoofElements);
-        printf("Number of Elements to be sorted : %d\n", NoofElements);
-        fprintf(fp, "The sorted sequence is :\n");
-        printf("Sorted output sequence is\n\n");
-        for (i = 0; i < NoofElements; i++) {
-            fprintf(fp, "%d\n", Output[i]);
-            printf("%d   ", Output[i]);
-        }
-        printf("\n");
-        fclose(fp);
+	MPI_Gather (bucketLocal, 2*countElementsLocal, MPI_INT, outputBuf,
+					2*countElementsLocal, MPI_INT, root, MPI_COMM_WORLD);
 
-        CALI_MARK_BEGIN("correctness_check");
-        correctness_check(Output, NoofElements);
-        CALI_MARK_END("correctness_check");
+	/**** Rearranging output buffer ****/
+		if (rank == root){
+			printf("Rank %d: Rearranging output buffer\n", rank);
+			count = 0;
+			for(j=0; j<numProcs; j++){
+			k = 1;
+			for(i=0; i<outputBuf[(2 * countElements/numProcs) * j]; i++)
+					output[count++] = outputBuf[(2*countElements/numProcs) * j + k++];
+			}
 
-        free(Input);
-        free(OutputBuffer);
-        free(Output);
-    } /* MyRank==0*/
+		/**** Printng the output ****/
+		printf("Rank %d: Printing the output\n", rank);
+			if ((fp = fopen("sort.out", "w")) == NULL){
+				printf("Can't Open Output File \n");
+				exit(0);
+			}
 
-    free(InputData);
-    free(Splitter);
-    free(AllSplitter);
-    free(Buckets);
-    free(BucketBuffer);
-    free(LocalBucket);
+			fprintf (fp, "Number of Elements to be sorted : %d \n", countElements);
+			printf ( "Number of Elements to be sorted : %d \n", countElements);
+			fprintf (fp, "The sorted sequence is : \n");
+		printf( "Sorted output sequence is\n\n");
+			for (i=0; i<countElements; i++){
+				fprintf(fp, "%d\n", output[i]);
+				printf( "%d   ", output[i]);
+		}
 
-    // Finalize
-    MPI_Finalize();
+		CALI_MARK_BEGIN("correctness_check");
+		correctness_check(output, countElements);
+		CALI_MARK_END("correctness_check");
+
+		printf ( " \n " );
+		fclose(fp);
+		free(input);
+		free(outputBuf);
+		free(output);
+	}/* MyRank==0*/
+
+		free(inputData);
+		free(splitter);
+		free(splitterGlobal);
+		free(buckets);
+		free(bucketBuf);
+		free(bucketLocal);
+
+	/**** Finalize ****/
+	MPI_Finalize();
 
     adiak::init(NULL);
     adiak::launchdate();                    // launch date of the job
@@ -273,9 +282,9 @@ int main(int argc, char** argv) {
     adiak::value("ProgrammingModel", "MPI"); // e.g., "MPI", "CUDA", "MPIwithCUDA"
     adiak::value("Datatype", "int");        // The datatype of input elements (e.g., double, int, float)
     adiak::value("SizeOfDatatype", sizeof(int)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
-    adiak::value("InputSize", NoofElements);      // The number of elements in input dataset (1000)
-    adiak::value("InputType", input_type);         // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
-    adiak::value("num_procs", Numprocs);           // The number of processors (MPI ranks)
+    adiak::value("InputSize", countElements);      // The number of elements in input dataset (1000)
+    adiak::value("InputType", inputType);         // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
+    adiak::value("num_procs", numProcs);           // The number of processors (MPI ranks)
     adiak::value("group_num", 6);                  // The number of your group (integer, e.g., 1, 10)
     adiak::value("implementation_source", "Online"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
 

@@ -92,7 +92,7 @@ void dataInit(float *values, float NUM_VALS){
   else if(TYPE == "ReverseSorted"){
     array_fill_reverseSorted(values, NUM_VALS);
   }
-  else if(TYPE == "1%perturbed"){
+  else if(TYPE == "1perturbed"){
     array_fill_1perturbed(values, NUM_VALS);
   }
   else{

@@ -26,3 +26,38 @@ const char *comm_large_MPI_Scatter = "comm_large_MPI_Scatter";
 const char *comp = "comp";
 const char *comp_large = "comp_large";
 const char *data_init = "data_init";
+
+float random_float() {
+    return (float)rand() / (float)RAND_MAX;
+}
+
+void array_fill(float *arr, int length) {
+    srand(time(NULL));
+    int i;
+    for (i = 0; i < length; ++i) {
+        arr[i] = random_float();
+    }
+}
+
+bool check_sorted(const float *arr, int length) {
+    for (int i = 1; i < length; ++i) {
+        if (arr[i - 1] > arr[i]) {
+            std::cout << arr[i - 1] << ' ' << arr[i] << ' ';
+            return false;
+        }
+    }
+    return true;
+}
+
+int compare_floats(const void *a_ptr, const void *b_ptr) {
+    float value_a = *(const float *)a_ptr;
+    float value_b = *(const float *)b_ptr;
+
+    if (value_a < value_b) {
+        return -1;
+    } else if (value_a > value_b) {
+        return 1;
+    } else {
+        return 0;
+    }
+}

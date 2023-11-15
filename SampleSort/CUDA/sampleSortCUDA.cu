@@ -21,6 +21,7 @@ const char* comm_large = "comm_large";
 const char* comp = "comp";
 const char* comp_small = "comp_small";
 const char* comp_large = "comp_large";
+const char* cudaMemcpy = "cudaMemcpy";
 
 float random_float()
 {
@@ -266,7 +267,9 @@ void sample_sort(float* values) {
 
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_large);
+  CALI_MARK_BEGIN(cudaMemcpy);
   cudaMemcpy(dev_values, values, size, cudaMemcpyHostToDevice);
+  CALI_MARK_END(cudaMemcpy);
   CALI_MARK_END(comm_large);
   CALI_MARK_END(comm);
 
@@ -290,7 +293,9 @@ void sample_sort(float* values) {
   float *final_samples = (float*)malloc(allBlocksSize);
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_small);
+  CALI_MARK_BEGIN(cudaMemcpy);
   cudaMemcpy(final_samples, all_samples, allBlocksSize, cudaMemcpyDeviceToHost);
+  CALI_MARK_END(cudaMemcpy);
   CALI_MARK_END(comm_small);
   CALI_MARK_END(comm);
 
@@ -309,7 +314,9 @@ void sample_sort(float* values) {
   cudaMalloc((void**)&final_pivots, pivotSize);
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_small);
+  CALI_MARK_BEGIN(cudaMemcpy);
   cudaMemcpy(final_pivots, pivots, pivotSize, cudaMemcpyHostToDevice);
+  CALI_MARK_END(cudaMemcpy);
   CALI_MARK_END(comm_small);
   CALI_MARK_END(comm);
 
@@ -331,7 +338,9 @@ void sample_sort(float* values) {
   int* incoming_values = (int*)malloc(numBlocks2Size);
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_small);
+  CALI_MARK_BEGIN(cudaMemcpy);
   cudaMemcpy(incoming_values, numIncomingValues, numBlocks2Size, cudaMemcpyDeviceToHost);
+  CALI_MARK_END(cudaMemcpy);
   CALI_MARK_END(comm_small);
   CALI_MARK_END(comm);
 
@@ -349,7 +358,9 @@ void sample_sort(float* values) {
   //Communicate final values
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_small);
+  CALI_MARK_BEGIN(cudaMemcpy);
   cudaMemcpy(final_values, final_counts, finalBlockSize, cudaMemcpyHostToDevice);
+  CALI_MARK_END(cudaMemcpy);
   CALI_MARK_END(comm_small);
   CALI_MARK_END(comm);
 
@@ -379,7 +390,9 @@ void sample_sort(float* values) {
   //Copy sorted array back to values
   CALI_MARK_BEGIN(comm);
   CALI_MARK_BEGIN(comm_large);
+  CALI_MARK_BEGIN(cudaMemcpy);
   cudaMemcpy(values, final_sorted_values, finalSize, cudaMemcpyDeviceToHost);
+  CALI_MARK_END(cudaMemcpy);
   CALI_MARK_END(comm_large);
   CALI_MARK_END(comm);
 

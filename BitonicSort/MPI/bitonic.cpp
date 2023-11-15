@@ -67,25 +67,23 @@ int compare_floats(const void *a_ptr, const void *b_ptr) {
 
 void bitonic_high(int stage_bit) {
     int index;
-    float helper_max;
+    float partner_max_value;
 
-    // Allocate buffers for send and receive
     float *receive_buffer = (float *)malloc((array_size + 1) * sizeof(float));
     int receive_count;
 
-    // Receive helper_max from the partner process
-    MPI_Recv(&helper_max, 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    // Receive the maximum value from the partner process
+    MPI_Recv(&partner_max_value, 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    // Prepare send buffer
     int send_count = 0;
     float *send_buffer = (float *)malloc((array_size + 1) * sizeof(float));
 
-    // Send the first element of curr_array to the partner process
+    // Send the first element of the current array to the partner process
     MPI_Send(&curr_array[0], 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD);
 
-    // Populate send buffer with values less than partner's max_value
+    // Populate the send buffer with values less than the partner's max_value
     for (index = 0; index < array_size; index++) {
-        if (curr_array[index] < helper_max) {
+        if (curr_array[index] < partner_max_value) {
             send_buffer[send_count + 1] = curr_array[index];
             send_count++;
         } else {
@@ -101,7 +99,7 @@ void bitonic_high(int stage_bit) {
     // Send the send_buffer to the partner process
     MPI_Send(send_buffer, send_count + 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD);
 
-    // Merge received values
+    // Merge received values into the current array
     for (index = 1; index <= receive_count; index++) {
         if (receive_buffer[index] > curr_array[0]) {
             curr_array[0] = receive_buffer[index];
@@ -110,30 +108,30 @@ void bitonic_high(int stage_bit) {
         }
     }
 
-    // Sort the updated local array
+    // Sort the updated current array
     qsort(curr_array, array_size, sizeof(float), compare_floats);
 
-    // Free dynamically allocated memory
     free(send_buffer);
     free(receive_buffer);
 }
 
+
 void bitonic_low(int stage_bit) {
     int i;
-    float helper_min;
+    float partner_min_value;
 
-    // Allocate buffers for send and receive
+    // Allocate memory for send and receive buffers
     float *send_buffer = (float *)malloc((array_size + 1) * sizeof(float));
     int send_count = 0;
     MPI_Send(&curr_array[array_size - 1], 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD);
 
     int receive_count;
     float *receive_buffer = (float *)malloc((array_size + 1) * sizeof(float));
-    MPI_Recv(&helper_min, 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Recv(&partner_min_value, 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    // Populate send buffer with values greater than partner's min
+    // Populate send buffer with values greater than partner's min_value
     for (i = array_size - 1; i >= 0; i--) {
-        if (curr_array[i] > helper_min) {
+        if (curr_array[i] > partner_min_value) {
             send_buffer[send_count + 1] = curr_array[i];
             send_count++;
         } else {
@@ -145,7 +143,7 @@ void bitonic_low(int stage_bit) {
     MPI_Send(send_buffer, send_count + 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD);
     MPI_Recv(receive_buffer, array_size, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    // Merge received values
+    // Merge received values into the current array
     receive_count = (int)receive_buffer[0];
     for (i = 1; i <= receive_count; i++) {
         if (curr_array[array_size - 1] < receive_buffer[i]) {
@@ -155,11 +153,11 @@ void bitonic_low(int stage_bit) {
         }
     }
 
-    // Sort the updated local array
+    // Sort the updated current array
     qsort(curr_array, array_size, sizeof(float), compare_floats);
     free(send_buffer);
     free(receive_buffer);
-};
+}
 
 
 int main(int argc, char *argv[]) {
@@ -169,6 +167,7 @@ int main(int argc, char *argv[]) {
     CALI_MARK_BEGIN(main_region);
 
     int numVals;
+
     if (argc == 2) {
         numVals = atoi(argv[1]);
     } else {
@@ -190,10 +189,10 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    // data initialization
     array_size = numVals / numtasks;
-
     curr_array = (float *)malloc(array_size * sizeof(float));
+
+    // Allocate memory for the global array in the master process
     if (taskid == MASTER) {
         global_array = (float *)malloc(numVals * sizeof(float));
     }
@@ -202,14 +201,14 @@ int main(int argc, char *argv[]) {
     array_fill(curr_array, array_size);
     CALI_MARK_END(data_init);
 
-    // MP barrier
+    // MPI barrier
     MPI_Barrier(MPI_COMM_WORLD);
     int proc_step = (int)(log2(numtasks));
 
-    // local sort in worker
+    // Local sort in worker processes
     qsort(curr_array, array_size, sizeof(float), compare_floats);
 
-    // iterate over stages, processes, and call high or low
+    // Iterate over stages, processes, and call bitonic_low or bitonic_high
     for (int i = 0; i < proc_step; i++) {
         for (int j = i; j >= 0; j--) {
             if (((taskid >> (i + 1)) % 2 == 0 && (taskid >> j) % 2 == 0) ||
@@ -221,11 +220,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // MPI GATHER for local to global
+    // MPI GATHER for collecting local arrays into the global array
     MPI_Gather(curr_array, array_size, MPI_FLOAT, global_array, array_size, MPI_FLOAT, MASTER, MPI_COMM_WORLD);
 
     CALI_MARK_BEGIN(correctness_check);
 
+    // Check the correctness of the global array sorting in the master process
     if (taskid == MASTER) {
         int is_correct = check_sorted(global_array, numVals);
         if (is_correct) {
@@ -242,6 +242,7 @@ int main(int argc, char *argv[]) {
     if (taskid == MASTER) {
         free(global_array);
     }
+
     MPI_Finalize();
 
     return 0;

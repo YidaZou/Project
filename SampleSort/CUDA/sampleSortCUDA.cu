@@ -7,12 +7,11 @@
 #include <adiak.hpp>
 #include <cuda_runtime.h>
 #include <cuda.h>
-#include <string>
 
-int num_threads;
-int num_blocks;
-int inputSize;
-std::string inputType;
+int THREADS;
+int BLOCKS;
+int NUM_VALS;
+int TYPE;   //1-Random, 2-Sorted, 3-ReverseSorted, 4-1%perturbed
 
 const char* data_init = "data_init";
 const char* correctness_check = "correctness_check";
@@ -69,28 +68,28 @@ void array_fill_1perturbed(float *arr, int length)
 }
 
 void correctnessCheck(float *outValues){
-    //check if sorted
-    for(int i = 0; i < inputSize - 1; i++){
-        if(outValues[i] > outValues[i+1]){
-            printf("Error: Not sorted\n");
-            return;
-        }
+  //check if sorted
+  for(int i = 0; i < NUM_VALS - 1; i++){
+    if(outValues[i] > outValues[i+1]){
+      printf("Error: Not sorted\n");
+      return;
     }
-    printf("Success: Sorted\n");
+  }
+  printf("Success: Sorted\n");
 }
 
-void dataInit(float *values){
-  if(inputType == "Random"){
-    array_fill_random(values, inputSize);
+void dataInit(float *values, float NUM_VALS){
+  if(TYPE == 1){
+    array_fill_random(values, NUM_VALS);
   }
-  else if(inputType == "Sorted"){
-    array_fill_sorted(values, inputSize);
+  else if(TYPE == 2){
+    array_fill_sorted(values, NUM_VALS);
   }
-  else if(inputType == "ReverseSorted"){
-    array_fill_reverseSorted(values, inputSize);
+  else if(TYPE == 3){
+    array_fill_reverseSorted(values, NUM_VALS);
   }
-  else if(inputType == "1%perturbed"){
-    array_fill_1perturbed(values, inputSize);
+  else if(TYPE == 4){
+    array_fill_1perturbed(values, NUM_VALS);
   }
   else{
     printf("Error: Invalid input type\n");
@@ -104,11 +103,11 @@ int compare(const void *a, const void *b){ //for qsort
     return (fa > fb) - (fa < fb);
 }
 
-__global__ void sortSelectSamples(float* dev_values, int inputSize, int sampleSize, float* all_samples, int numSamples) {
+__global__ void sortSelectSamples(float* dev_values, int NUM_VALS, int sampleSize, float* all_samples, int numSamples) {
   int threadID = threadIdx.x + blockDim.x * blockIdx.x;
   int start = threadID * sampleSize;
 
-  if(start < inputSize) {
+  if(start < NUM_VALS) {
     //sort locally
     for(int i=0; i<sampleSize-1; i++) {
       for(int j=start; j<start+sampleSize-i-1; j++) {
@@ -126,28 +125,28 @@ __global__ void sortSelectSamples(float* dev_values, int inputSize, int sampleSi
   }
 }
 
-__global__ void findDisplacements(float* dev_values, int inputSize, int num_blocks, int sampleSize, float* pivots, int* numIncomingValues, int* displacements) {
+__global__ void findDisplacements(float* dev_values, int NUM_VALS, int BLOCKS, int sampleSize, float* pivots, int* numIncomingValues, int* displacements) {
   int threadID = threadIdx.x + blockDim.x * blockIdx.x;
   int start = threadID * sampleSize;
 
-  if (start < inputSize) {
+  if (start < NUM_VALS) {
     //Get local values in sample
     float* local_values = new float[sampleSize];
     for(int i=start; i<start+sampleSize; i++) {
       local_values[i-start] = dev_values[i];
     }
 
-    int *localCounts = new int[num_blocks];
-    int *localDisplacements = new int[num_blocks];
+    int *localCounts = new int[BLOCKS];
+    int *localDisplacements = new int[BLOCKS];
 
-    for(int i=0; i<num_blocks; i++){
+    for(int i=0; i<BLOCKS; i++){
       localCounts[i] = 0;
     }
 
     //Determine placement based on pivots
     for(int i=0; i<sampleSize; i++) {
       bool placed = false;
-      for(int k=0; k<num_blocks-1; k++) {
+      for(int k=0; k<BLOCKS-1; k++) {
         if(local_values[i] < pivots[k]) {
           localCounts[k]++;
           placed = true;
@@ -155,13 +154,13 @@ __global__ void findDisplacements(float* dev_values, int inputSize, int num_bloc
         }
       }
       if(!placed){
-        localCounts[num_blocks-1]++;
+        localCounts[BLOCKS-1]++;
       }
     }
       
     //Calculate displacements
     localDisplacements[0] = 0;
-    for(int i=1; i<num_blocks; i++){
+    for(int i=1; i<BLOCKS; i++){
       int sum = 0;
       for (int k=i-1; k>=0; k--){
         sum += localCounts[k];
@@ -170,9 +169,9 @@ __global__ void findDisplacements(float* dev_values, int inputSize, int num_bloc
     }
 
     //Move local to global
-    for(int i=0; i < num_blocks; i++){
-      numIncomingValues[i+threadID*num_blocks] = localCounts[i];
-      displacements[i+threadID*num_blocks] = localDisplacements[i];
+    for(int i=0; i < BLOCKS; i++){
+      numIncomingValues[i+threadID*BLOCKS] = localCounts[i];
+      displacements[i+threadID*BLOCKS] = localDisplacements[i];
     }
   }
 }
@@ -183,21 +182,21 @@ void selectPivots(float* all_samples, float* pivots, int samples_size, int numSa
   }
 }
 
-void computeFinalCounts(int* incoming_values, int* final_counts, int num_blocks) {
-  for(int i=0; i<num_blocks; i++) {
+void computeFinalCounts(int* incoming_values, int* final_counts, int BLOCKS) {
+  for(int i=0; i<BLOCKS; i++) {
     int sum = 0;
-    for (int k=i; k<num_blocks*num_blocks; k+=num_blocks){
+    for (int k=i; k<BLOCKS*BLOCKS; k+=BLOCKS){
       sum += incoming_values[k];
     }
     final_counts[i] = sum;
   }
 }
 
-__global__ void sendDisplacedValues(float* final_unsorted_values, float* dev_values, int inputSize, int num_blocks, int sampleSize, int *numIncomingValues, int *displacements, int *final_values){
+__global__ void sendDisplacedValues(float* final_unsorted_values, float* dev_values, int NUM_VALS, int BLOCKS, int sampleSize, int *numIncomingValues, int *displacements, int *final_values){
   int threadID = threadIdx.x + blockDim.x * blockIdx.x;
   int start = threadID * sampleSize;
 
-  if(start < inputSize) {
+  if(start < NUM_VALS) {
     //Get local values in sample
     float* local_values = new float[sampleSize];
     for(int i=start; i<start+sampleSize; i++) {
@@ -205,11 +204,11 @@ __global__ void sendDisplacedValues(float* final_unsorted_values, float* dev_val
     }
 
     //place values in global
-    for(int i=0; i<num_blocks; i++){
-      for(int k = displacements[i+threadID*num_blocks]; k<displacements[i+threadID*num_blocks]+numIncomingValues[i+threadID*num_blocks]; k++){ 
-        int offset = k - displacements[i+threadID*num_blocks];
+    for(int i=0; i<BLOCKS; i++){
+      for(int k = displacements[i+threadID*BLOCKS]; k<displacements[i+threadID*BLOCKS]+numIncomingValues[i+threadID*BLOCKS]; k++){ 
+        int offset = k - displacements[i+threadID*BLOCKS];
         for(int j=0; j<threadID; j++){
-          offset += numIncomingValues[j*num_blocks+i];
+          offset += numIncomingValues[j*BLOCKS+i];
         }       
         if(i>0) {
           for (int n=0; n<i; n++){
@@ -222,11 +221,11 @@ __global__ void sendDisplacedValues(float* final_unsorted_values, float* dev_val
   }
 }
 
-__global__ void finalSort(float *final_sorted_values, float* final_unsorted_values, int inputSize, int sampleSize, int *final_values) {
+__global__ void finalSort(float *final_sorted_values, float* final_unsorted_values, int NUM_VALS, int sampleSize, int *final_values) {
   int threadID = threadIdx.x + blockDim.x * blockIdx.x;
   int start = threadID * sampleSize;
 
-  if (start < inputSize) {
+  if (start < NUM_VALS) {
     float *final_local_values = new float[final_values[threadID]];
 
     int idx = 0;
@@ -258,10 +257,10 @@ __global__ void finalSort(float *final_sorted_values, float* final_unsorted_valu
 }
 
 void sample_sort(float* values) {
-  int sampleSize = inputSize / num_blocks;
-  int numSamples = num_blocks > sampleSize ? sampleSize / 2 : num_blocks;
+  int sampleSize = NUM_VALS / BLOCKS;
+  int numSamples = BLOCKS > sampleSize ? sampleSize / 2 : BLOCKS;
   float *dev_values;
-  size_t size = inputSize * sizeof(float);
+  size_t size = NUM_VALS * sizeof(float);
 
   cudaMalloc((void**)&dev_values, size);
 
@@ -272,16 +271,16 @@ void sample_sort(float* values) {
   CALI_MARK_END(comm);
 
   float *all_samples;
-  size_t allBlocksSize = num_blocks * numSamples * sizeof(float);
+  size_t allBlocksSize = BLOCKS * numSamples * sizeof(float);
   cudaMalloc((void**)&all_samples, allBlocksSize);
 
-  dim3 blocks(num_blocks,1); 
-  dim3 threads(num_threads,1);
+  dim3 blocks(BLOCKS,1); 
+  dim3 threads(THREADS,1);
   
   //Sort and select samples
   CALI_MARK_BEGIN(comp);
   CALI_MARK_BEGIN(comp_large);
-  sortSelectSamples<<<blocks, threads>>>(dev_values, inputSize, sampleSize, all_samples, numSamples);
+  sortSelectSamples<<<blocks, threads>>>(dev_values, NUM_VALS, sampleSize, all_samples, numSamples);
   CALI_MARK_END(comp_large);
   CALI_MARK_END(comp);
 
@@ -296,12 +295,12 @@ void sample_sort(float* values) {
   CALI_MARK_END(comm);
 
   //Select pivots
-  size_t pivotSize = (num_blocks-1) * sizeof(float);
+  size_t pivotSize = (BLOCKS-1) * sizeof(float);
   float *pivots = (float*)malloc(pivotSize);
   CALI_MARK_BEGIN(comp);
   CALI_MARK_BEGIN(comp_small);
-  qsort(final_samples, num_blocks*numSamples, sizeof(float), compare);    
-  selectPivots(final_samples, pivots, num_blocks*numSamples, numSamples);
+  qsort(final_samples, BLOCKS*numSamples, sizeof(float), compare);    
+  selectPivots(final_samples, pivots, BLOCKS*numSamples, numSamples);
   CALI_MARK_END(comp_small);
   CALI_MARK_END(comp);
 
@@ -315,14 +314,14 @@ void sample_sort(float* values) {
   CALI_MARK_END(comm);
 
   //Find displacements
-  size_t numBlocks2Size = num_blocks * num_blocks * sizeof(int);
+  size_t numBlocks2Size = BLOCKS * BLOCKS * sizeof(int);
   int *numIncomingValues;
   cudaMalloc((void**)&numIncomingValues, numBlocks2Size);
   int *displacements;
   cudaMalloc((void**)&displacements, numBlocks2Size);
   CALI_MARK_BEGIN(comp);
   CALI_MARK_BEGIN(comp_large);
-  findDisplacements<<<blocks, threads>>>(dev_values, inputSize, num_blocks, sampleSize, final_pivots, numIncomingValues, displacements);
+  findDisplacements<<<blocks, threads>>>(dev_values, NUM_VALS, BLOCKS, sampleSize, final_pivots, numIncomingValues, displacements);
   CALI_MARK_END(comp_large);
   CALI_MARK_END(comp);
 
@@ -337,13 +336,13 @@ void sample_sort(float* values) {
   CALI_MARK_END(comm);
 
   //Calculate final values
-  size_t finalBlockSize = num_blocks * sizeof(int);
+  size_t finalBlockSize = BLOCKS * sizeof(int);
   int* final_values;
   cudaMalloc((void**)&final_values, finalBlockSize);
   int* final_counts = (int*)malloc(finalBlockSize);
   CALI_MARK_BEGIN(comp);
   CALI_MARK_BEGIN(comp_small);
-  computeFinalCounts(incoming_values, final_counts, num_blocks);
+  computeFinalCounts(incoming_values, final_counts, BLOCKS);
   CALI_MARK_END(comp_small);
   CALI_MARK_END(comp);
 
@@ -355,12 +354,12 @@ void sample_sort(float* values) {
   CALI_MARK_END(comm);
 
   //Send displaced values
-  size_t finalSize = inputSize * sizeof(float);
+  size_t finalSize = NUM_VALS * sizeof(float);
   float *final_unsorted_values;
   cudaMalloc((void**)&final_unsorted_values, finalSize);
   CALI_MARK_BEGIN(comp);
   CALI_MARK_BEGIN(comp_large);
-  sendDisplacedValues<<<blocks, threads>>>(final_unsorted_values, dev_values, inputSize, num_blocks, sampleSize, numIncomingValues, displacements, final_values);
+  sendDisplacedValues<<<blocks, threads>>>(final_unsorted_values, dev_values, NUM_VALS, BLOCKS, sampleSize, numIncomingValues, displacements, final_values);
   CALI_MARK_END(comp_large);
   CALI_MARK_END(comp);
 
@@ -371,7 +370,7 @@ void sample_sort(float* values) {
   cudaMalloc((void**)&final_sorted_values, finalSize);
   CALI_MARK_BEGIN(comp);
   CALI_MARK_BEGIN(comp_large);
-  finalSort<<<blocks, threads>>>(final_sorted_values, final_unsorted_values, inputSize, sampleSize, final_values);
+  finalSort<<<blocks, threads>>>(final_sorted_values, final_unsorted_values, NUM_VALS, sampleSize, final_values);
   CALI_MARK_END(comp_large);
   CALI_MARK_END(comp);
 
@@ -396,19 +395,39 @@ void sample_sort(float* values) {
 }
 
 int main(int argc, char *argv[]) {
-  num_threads = atoi(argv[1]);
-  inputSize = atoi(argv[2]);
-  inputType = argv[3];
-  num_blocks = inputSize / num_threads;
+  THREADS = atoi(argv[1]);
+  NUM_VALS = atoi(argv[2]);
+  TYPE = 1;
+  /*
+  TYPE = atoi(argv[3]);
+  char *typeString = new char[100];
+  if(TYPE == 1){
+    strcpy(typeString,"Random");
+  }
+  else if(TYPE == 2){
+    strcpy(typeString,"Sorted");
+  }
+  else if(TYPE == 3){
+    strcpy(typeString,"ReverseSorted");
+  }
+  else if(TYPE == 4){
+    strcpy(typeString,"1%perturbed");
+  }
+  else{
+    printf("Error: Invalid input type\n");
+    return 0;
+  }
+  */
+  BLOCKS = NUM_VALS / THREADS;
 
   //cali config manager
   cali::ConfigManager mgr;
   mgr.start();
 
-  float *values = (float*)malloc(inputSize * sizeof(float));
+  float *values = (float*)malloc(NUM_VALS * sizeof(float));
 
   CALI_MARK_BEGIN(data_init);
-  dataInit(values);
+  dataInit(values, NUM_VALS);
   CALI_MARK_END(data_init);
 
   sample_sort(values);
@@ -426,11 +445,11 @@ int main(int argc, char *argv[]) {
   adiak::value("ProgrammingModel", "CUDA"); // e.g., "MPI", "CUDA", "MPIwithCUDA"
   adiak::value("Datatype", "float"); // The datatype of input elements (e.g., double, int, float)
   adiak::value("SizeOfDatatype", sizeof(float)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
-  adiak::value("InputSize", inputSize); // The number of elements in input dataset (1000)
-  adiak::value("InputType", inputType); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
+  adiak::value("InputSize", NUM_VALS); // The number of elements in input dataset (1000)
+  adiak::value("InputType", "Random"); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
   //adiak::value("num_procs", num_procs); // The number of processors (MPI ranks)
-  adiak::value("num_threads", num_threads); // The number of CUDA or OpenMP threads
-  adiak::value("num_blocks", num_blocks); // The number of CUDA blocks 
+  adiak::value("num_threads", THREADS); // The number of CUDA or OpenMP threads
+  adiak::value("num_blocks", BLOCKS); // The number of CUDA blocks 
   adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)
   adiak::value("implementation_source", "AI+Handwritten"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
 

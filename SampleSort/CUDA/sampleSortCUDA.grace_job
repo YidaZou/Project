@@ -27,6 +27,6 @@ module load intel/2020b
 module load GCCcore/7.3.0
 #
 
-CALI_CONFIG="spot(output=cali_files/${Algorithm}-${ProgrammingModel}-${num_threads}-${inputSize}-${inputType}.cali), \
+CALI_CONFIG="spot(output=cali_files/sampleSortCUDA-${num_threads}-${num_vals}-Random.cali), \
     cuda.gputime" \
-./sampleSortCUDA $num_threads $inputSize $inputType
+./sampleSortCUDA $num_threads $num_vals

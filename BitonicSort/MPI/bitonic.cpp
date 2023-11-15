@@ -7,6 +7,15 @@
 #include <caliper/cali-manager.h>
 #include <adiak.hpp>
 
+int numtasks, taskid, numworkers, source, dest, mtype;
+double whole_computation_time, master_initialization_time = 0;
+
+float *local_array;
+float *global_array;
+int array_size;
+
+MPI_Status status;
+
 // Define Caliper region names
 const char *main_region = "main";
 const char *comm = "comm";

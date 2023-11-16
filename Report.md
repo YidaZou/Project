@@ -125,8 +125,15 @@ The time seems to be holding constant over all number of threads for all input s
 At least, in comp_large, the 2^12 input size seems to show somewhat of a downward trend in time as the number of threads increases.
 
 ### Sample Sort MPI
-There is in increase in computational and communication time as the size to be sorted increases. It is expected that as the computational and comunicaiton time will decrease with an increased number of processors. It is expected that there are marginal differences between the differnt types of array population: random, sorted, reverse sorted, and 1% perturped. While one would expect a sorted array to have statistically significant reduction in time say compared to a randomly sorted aray, the overhead of communication time and the computational splitting make the differnce less prevelant. I was not able to collect all of the .cali files for every combination of parameters. Specifically, my jobs with 512 and 1024 number of processors either timed out or failed due to nodes being killed on Grace. I plan to provide graphs and every parameter combination of .cali files before the completion of the project.
+There is in increase in computational and communication time as the size to be sorted increases. It is expected that as the computational and comunicaiton time will decrease with an increased number of threads. It is expected that there are marginal differences between the differnt types of array population: random, sorted, reverse sorted, and 1% perturped. While one would expect a sorted array to have statistically significant reduction in time say compared to a randomly sorted aray, the overhead of communication time and the computational splitting make the differnce less prevelant. I was not able to collect all of the .cali files for every combination of parameters. Specifically, my jobs with 512 and 1024 number of threads either timed out or failed due to nodes being killed on Grace. I plan to provide graphs and every parameter combination of .cali files before the completion of the project.
 
+### Bitonic Sort CUDA
+
+Although graphs were not completed in time, we can expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. As we increase the number of processes, the algorithmic runtime should decrease.
+
+### Bitonic Sort MPI
+
+Although graphs were not completed in time, we can expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of processes. As we increase the number of processes, the algorithmic runtime should decrease.
 
 ### 4a. Vary the following parameters
 For inputSizes:

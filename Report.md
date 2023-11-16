@@ -136,7 +136,8 @@ Although graphs were not completed in time, we can expect an increase in the com
 
 ### Merge Sort MPI
 Graphs: https://github.com/YidaZou/Project/blob/master/Analysis/mergeSortMPI/Graphs.pdf
-As the number of processers increases, the runtime of the mergesort algorithm runtime decreases up until a point of diminshing returns. This is because the communication time will increase, with more workers splitting up the overall task. A graph will be provided to show these trends in detail.
+
+One would expect that as the number of processers increases, the runtime of the mergesort algorithm runtime decreases up until a point of diminshing returns. This is because the communication time will increase, with more workers splitting up the overall task. However, there is a significant increase in time across all number of threads as the input size increases. Computation time and communication time both go up with the number of threads. This could signal a problem with the algorithm implementation.
 
 ### Merge Sort CUDA
 

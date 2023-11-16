@@ -186,13 +186,6 @@ int main(int argc, char** argv) {
   int rank, size, input_size;
   std::string input_type;
 
-  if (argc != 4)
-    {
-        std::cerr << "Usage: " << argv[0] << "<num_processors> <arry_size> <input_type>" << std::endl;
-        MPI_Finalize();
-        return 1;
-    }
-
   size = atoi(argv[1]);
   input_size = atoi(argv[2]);
   input_type = argv[3];
@@ -213,12 +206,21 @@ int main(int argc, char** argv) {
   int local_size = input_size / size;
   int* local_arr = (int*)malloc(sizeof(int) * local_size);
 
-  // MPI communication region
+  // MPI Communication
   CALI_MARK_BEGIN("comm");
+
+  CALI_MARK_BEGIN("MPI_Barrier");
+  MPI_Barrier(MPI_COMM_WORLD);
+  CALI_MARK_END("MPI_Barrier");
+
   CALI_MARK_BEGIN("comm_large");
+  CALI_MARK_BEGIN("MPI_Scatter");
   MPI_Scatter(&global_array[0], local_size, MPI_INT, &local_arr[0], local_size, MPI_INT, 0, MPI_COMM_WORLD);
+  CALI_MARK_END("MPI_Scatter");
   CALI_MARK_END("comm_large");
+
   CALI_MARK_END("comm");
+
 
   // Merge Computation Region
   CALI_MARK_BEGIN("comp");
@@ -227,12 +229,22 @@ int main(int argc, char** argv) {
   CALI_MARK_END("comp_large");
   CALI_MARK_END("comp");
 
+
   // MPI communication region
   CALI_MARK_BEGIN("comm");
-  CALI_MARK_BEGIN("comm_small");
+
+  CALI_MARK_BEGIN("MPI_Barrier");
+  MPI_Barrier(MPI_COMM_WORLD);
+  CALI_MARK_END("MPI_Barrier");
+
+  CALI_MARK_BEGIN("comm_large");
+  CALI_MARK_BEGIN("MPI_Gather");
   MPI_Gather(&local_arr[0], local_size, MPI_INT, &global_array[0], local_size, MPI_INT, 0, MPI_COMM_WORLD);
-  CALI_MARK_END("comm_small");
+  CALI_MARK_END("MPI_Gather");
+  CALI_MARK_END("comm_large");
+
   CALI_MARK_END("comm");
+
 
   // Perform final merge on the root process
     if (rank == 0)

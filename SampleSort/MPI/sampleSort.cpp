@@ -49,7 +49,7 @@ void dataInit(int *values, std::string inputType, int inputSize) {
         array_fill_sorted(values, inputSize);
     } else if (inputType == "ReverseSorted") {
         array_fill_reverseSorted(values, inputSize);
-    } else if (inputType == "1Perturbed") {
+    } else if (inputType == "1perturbed") {
         array_fill_1perturbed(values, inputSize);
     } else {
         printf("Error: Invalid input type\n");
@@ -76,38 +76,69 @@ static int comparable(const void *i, const void *j) {
 }
 
 void parallelSampleSort(int *localData, int localSize, int *pivots, int numProcs, int rank, MPI_Comm comm) {
-    // Gather samples from all processes
-    int *allSamples = NULL;
-    int *localSamples = (int *)malloc(numProcs * sizeof(int));
-    MPI_Gather(&localSize, 1, MPI_INT, localSamples, 1, MPI_INT, 0, comm);
+    // Local partitioning and sorting
+	CALI_MARK_BEGIN("comp");
+	CALI_MARK_BEGIN("comp_large");
+    std::sort(localData, localData + localSize);
+	CALI_MARK_END("comp_large");
+	CALI_MARK_END("comp");
 
-    if (rank == 0) {
-        allSamples = (int *)malloc(numProcs * localSize * sizeof(int));
+
+    // Choosing the Splitters
+    std::vector<int> localSplitters(numProcs - 1);
+	CALI_MARK_BEGIN("comp");
+	CALI_MARK_BEGIN("comp_small");
+    for (int i = 1; i < numProcs; ++i) {
+        localSplitters[i - 1] = localData[i * (localSize / numProcs)];
     }
+	CALI_MARK_END("comp_small");
+	CALI_MARK_END("comp");
 
-    MPI_Gatherv(localData, localSize, MPI_INT, allSamples, localSamples, localSamples, MPI_INT, 0, comm);
+    // Gather all local splitters at root (rank 0)
+    std::vector<int> allSplitters(numProcs * (numProcs - 1));
+	CALI_MARK_BEGIN("comm");
+	CALI_MARK_BEGIN("comm_small");
+	CALI_MARK_BEGIN("MPI_Gather");
+    MPI_Gather(localSplitters.data(), numProcs - 1, MPI_INT,
+               allSplitters.data(), numProcs - 1, MPI_INT, 0, comm);
+	CALI_MARK_END("MPI_Gather");
+	CALI_MARK_END("comm_small");
+	CALI_MARK_END("comm");
 
-    // Sort the samples on root
+
+    // Completing the sort
+
     if (rank == 0) {
-        std::sort(allSamples, allSamples + numProcs * localSize);
+        // Sort the gathered splitters
+		CALI_MARK_BEGIN("comp");
+		CALI_MARK_BEGIN("comp_small");
+        std::sort(allSplitters.begin(), allSplitters.end());
+
         // Choose pivots
         for (int i = 1; i < numProcs; ++i) {
-            pivots[i - 1] = allSamples[i * localSize];
+            pivots[i - 1] = allSplitters[i * (numProcs - 1)];
         }
-        pivots[numProcs - 1] = allSamples[numProcs * localSize - 1];
+        pivots[numProcs - 1] = allSplitters[numProcs * (numProcs - 1) - 1];
+		CALI_MARK_END("comp_small");
+		CALI_MARK_END("comp");
     }
 
     // Broadcast pivots to all processes
+	CALI_MARK_BEGIN("comm");
+	CALI_MARK_BEGIN("comm_small");
+	CALI_MARK_BEGIN("MPI_Bcast");
     MPI_Bcast(pivots, numProcs - 1, MPI_INT, 0, comm);
+	CALI_MARK_END("MPI_Bcast");
+	CALI_MARK_END("comm_small");
+	CALI_MARK_END("comm");
 
     // Local partitioning using selected pivots
-    int *localCounts = (int *)malloc(numProcs * sizeof(int));
-    int *prefixCounts = (int *)malloc(numProcs * sizeof(int));
-    int *localPartitions = (int *)malloc(localSize * sizeof(int));
+    std::vector<int> localCounts(numProcs, 0);
+    std::vector<int> prefixCounts(numProcs, 0);
+    std::vector<int> localPartitions(localSize);
 
-    for (int i = 0; i < numProcs; ++i) {
-        localCounts[i] = 0;
-    }
+	CALI_MARK_BEGIN("comp");
+	CALI_MARK_BEGIN("comp_large");
 
     for (int i = 0; i < localSize; ++i) {
         int j = 0;
@@ -125,21 +156,17 @@ void parallelSampleSort(int *localData, int localSize, int *pivots, int numProcs
     }
 
     // Move data to correct partitions
-    int *localCopy = (int *)malloc(localSize * sizeof(int));
+    std::vector<int> localCopy(localSize);
     for (int i = 0; i < localSize; ++i) {
         int dest = prefixCounts[localPartitions[i]]++;
         localCopy[dest] = localData[i];
     }
 
     // Copy data back to localData
-    memcpy(localData, localCopy, localSize * sizeof(int));
+    std::memcpy(localData, localCopy.data(), localSize * sizeof(int));
 
-    free(localSamples);
-    free(allSamples);
-    free(localCounts);
-    free(prefixCounts);
-    free(localPartitions);
-    free(localCopy);
+	CALI_MARK_END("comp_large");
+	CALI_MARK_END("comp");
 }
 
 int main(int argc, char **argv) {
@@ -173,25 +200,40 @@ int main(int argc, char **argv) {
 
         // Initialize data
         inputType = argv[3];
+		CALI_MARK_BEGIN("data_init");
         dataInit(input, inputType, countElements);
+		CALI_MARK_END("data_init");
 
         // Print original data
-        printf("Original data on root:\n");
-        for (int i = 0; i < countElements; i++) {
-            printf("%d ", input[i]);
-        }
-        printf("\n");
+        // printf("Original data on root:\n");
+        // for (int i = 0; i < countElements; i++) {
+        //     printf("%d ", input[i]);
+        // }
+        // printf("\n");
     }
 
+	CALI_MARK_BEGIN("comm");
+	CALI_MARK_BEGIN("comm_small");
+	CALI_MARK_BEGIN("MPI_Bcast");
     // Broadcast the size of the array to all processes
     MPI_Bcast(&countElements, 1, MPI_INT, root, MPI_COMM_WORLD);
+	CALI_MARK_END("MPI_Bcast");
+	CALI_MARK_END("comm_small");
+	CALI_MARK_END("comm");
 
     // Allocate memory for local data
     countElementsLocal = countElements / numProcs;
     int *localData = (int *)malloc(countElementsLocal * sizeof(int));
 
     // Scatter data to all processes
+
+	CALI_MARK_BEGIN("comm");
+	CALI_MARK_BEGIN("comm_large");
+	CALI_MARK_BEGIN("MPI_Scatter");
     MPI_Scatter(input, countElementsLocal, MPI_INT, localData, countElementsLocal, MPI_INT, root, MPI_COMM_WORLD);
+	CALI_MARK_END("MPI_Scatter");
+	CALI_MARK_END("comm_large");
+	CALI_MARK_END("comm");
 
     // Sort local data using parallel SampleSort
     int *pivots = (int *)malloc((numProcs - 1) * sizeof(int));
@@ -201,15 +243,22 @@ int main(int argc, char **argv) {
     if (rank == root) {
         output = (int *)malloc(countElements * sizeof(int));
     }
+
+	CALI_MARK_BEGIN("comm");
+	CALI_MARK_BEGIN("comm_large");
+	CALI_MARK_BEGIN("MPI_Gather");
     MPI_Gather(localData, countElementsLocal, MPI_INT, output, countElementsLocal, MPI_INT, root, MPI_COMM_WORLD);
+	CALI_MARK_END("MPI_Gather");
+	CALI_MARK_END("comm_large");
+	CALI_MARK_END("comm");
 
     // Print sorted data on root
     if (rank == root) {
-        printf("Sorted data on root:\n");
-        for (int i = 0; i < countElements; i++) {
-            printf("%d ", output[i]);
-        }
-        printf("\n");
+        // printf("Sorted data on root:\n");
+        // for (int i = 0; i < countElements; i++) {
+        //     printf("%d ", output[i]);
+        // }
+        // printf("\n");
 
         // Check correctness
         CALI_MARK_BEGIN("correctness_check");
@@ -236,7 +285,7 @@ int main(int argc, char **argv) {
     adiak::value("InputType", inputType);         // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
     adiak::value("num_procs", numProcs);           // The number of processors (MPI ranks)
     adiak::value("group_num", 6);                  // The number of your group (integer, e.g., 1, 10)
-    adiak::value("implementation_source", "Online"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
+    adiak::value("implementation_source", "Online+AI"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
 
     CALI_MARK_END("main");
 

@@ -1,0 +1,103 @@
+__rec=node,id=12,attr=10,data=64,parent=3
+__rec=node,id=13,attr=8,data=attribute.alias,parent=12
+__rec=node,id=14,attr=8,data=attribute.unit,parent=12
+__rec=node,id=83,attr=14,data=sec,parent=5
+__rec=node,id=84,attr=13,data=Min time/rank,parent=83
+__rec=node,id=85,attr=10,data=65,parent=84
+__rec=node,id=86,attr=8,data=min#inclusive#sum#time.duration,parent=85
+__rec=node,id=87,attr=13,data=Max time/rank,parent=83
+__rec=node,id=88,attr=10,data=65,parent=87
+__rec=node,id=89,attr=8,data=max#inclusive#sum#time.duration,parent=88
+__rec=node,id=90,attr=13,data=Avg time/rank,parent=83
+__rec=node,id=91,attr=10,data=65,parent=90
+__rec=node,id=92,attr=8,data=avg#inclusive#sum#time.duration,parent=91
+__rec=node,id=95,attr=10,data=193,parent=5
+__rec=node,id=96,attr=8,data=avg.sum#inclusive#sum#time.duration,parent=95
+__rec=node,id=93,attr=10,data=193,parent=2
+__rec=node,id=94,attr=8,data=avg.count#inclusive#sum#time.duration,parent=93
+__rec=node,id=97,attr=13,data=Total time,parent=83
+__rec=node,id=98,attr=10,data=65,parent=97
+__rec=node,id=99,attr=8,data=sum#inclusive#sum#time.duration,parent=98
+__rec=node,id=100,attr=13,data=Variance time/rank,parent=5
+__rec=node,id=101,attr=10,data=65,parent=100
+__rec=node,id=102,attr=8,data=variance#inclusive#sum#time.duration,parent=101
+__rec=node,id=104,attr=8,data=var.sum#inclusive#sum#time.duration,parent=95
+__rec=node,id=105,attr=8,data=var.sqsum#inclusive#sum#time.duration,parent=95
+__rec=node,id=103,attr=8,data=var.count#inclusive#sum#time.duration,parent=93
+__rec=node,id=106,attr=13,data=Retiring,parent=5
+__rec=node,id=107,attr=10,data=65,parent=106
+__rec=node,id=108,attr=8,data=any#any#topdown.retiring,parent=107
+__rec=node,id=109,attr=13,data=Backend bound,parent=5
+__rec=node,id=110,attr=10,data=65,parent=109
+__rec=node,id=111,attr=8,data=any#any#topdown.backend_bound,parent=110
+__rec=node,id=112,attr=13,data=Frontend bound,parent=5
+__rec=node,id=113,attr=10,data=65,parent=112
+__rec=node,id=114,attr=8,data=any#any#topdown.frontend_bound,parent=113
+__rec=node,id=115,attr=13,data=Bad speculation,parent=5
+__rec=node,id=116,attr=10,data=65,parent=115
+__rec=node,id=117,attr=8,data=any#any#topdown.bad_speculation,parent=116
+__rec=node,id=118,attr=13,data=Node order,parent=2
+__rec=node,id=119,attr=10,data=65,parent=118
+__rec=node,id=120,attr=8,data=min#min#aggregate.slot,parent=119
+__rec=node,id=15,attr=8,data=spot.channel,parent=12
+__rec=node,id=121,attr=15,data=regionprofile
+__rec=ctx,ref=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.004563=0.468566=0.131478=8.414566=64=8.414566=0.009962=8.414566=1.743877=64=0.236433=0.169853=0.522367=0.071346=0
+__rec=node,id=60,attr=10,data=276,parent=3
+__rec=node,id=61,attr=8,data=region,parent=60
+__rec=node,id=62,attr=61,data=main
+__rec=ctx,ref=62=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=162.392298=185.417151=164.524043=10529.538767=64=10529.538767=21.577428=10529.538767=1733743.246791=64=0.233868=0.258668=0.426351=0.081113=1
+__rec=node,id=63,attr=61,data=main,parent=62
+__rec=ctx,ref=63=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=162.392234=185.417079=164.518390=10529.176981=64=10529.176981=21.466182=10529.176981=1733617.084038=64=0.438109=0.102706=0.420998=0.038187=2
+__rec=node,id=67,attr=61,data=data_init,parent=63
+__rec=ctx,ref=67=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=93.603533=93.603533=93.603533=93.603533=1=93.603533=0.000000=93.603533=8761.621454=1=0.390359=0.590581=0.014662=0.004397=3
+__rec=node,id=72,attr=61,data=comm,parent=63
+__rec=ctx,ref=72=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=15.795836=98.554379=96.823797=6196.723019=64=6196.723019=104.253679=6196.723019=606662.488110=64=0.302563=0.126795=0.502152=0.068490=3
+__rec=node,id=73,attr=61,data=comm_small,parent=72
+__rec=ctx,ref=73=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000653=97.521219=93.958463=6013.341614=64=6013.341614=141.110405=6013.341614=574035.399807=64=0.368628=0.109645=0.452255=0.069472=4
+__rec=node,id=74,attr=61,data=MPI_Bcast,parent=73
+__rec=ctx,ref=74=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000437=97.521004=93.811975=6003.966426=64=6003.966426=140.766965=6003.966426=572253.036407=64=0.123211=0.393640=0.406553=0.076597=5
+__rec=node,id=75,attr=61,data=comm_large,parent=72
+__rec=ctx,ref=75=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.482603=15.795039=2.857878=182.904221=64=182.904221=3.817352=182.904221=767.028570=64=0.122877=0.065333=0.779743=0.032047=6
+__rec=node,id=76,attr=61,data=MPI_Scatter,parent=75
+__rec=ctx,ref=76=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.361860=4.455099=2.514734=160.942960=64=160.942960=1.205052=160.942960=481.852025=64=0.056443=0.908948=0.023874=0.010735=7
+__rec=node,id=77,attr=61,data=comp,parent=63
+__rec=ctx,ref=77=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=24.001890=24.712737=24.400118=1561.607544=64=1561.607544=0.025662=1561.607544=38105.050523=64=0.159182=0.059703=0.741483=0.039632=8
+__rec=node,id=78,attr=61,data=comp_large,parent=77
+__rec=ctx,ref=78=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=24.001685=24.712570=24.387337=1560.789536=64=1560.789536=0.026820=1560.789536=38065.216110=64=0.419975=0.142555=0.172162=0.265308=9
+__rec=node,id=79,attr=61,data=comp_small,parent=77
+__rec=ctx,ref=79=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000019=0.244294=0.007970=0.510108=64=0.510108=0.001711=0.510108=0.113601=64=0.484357=0.180763=0.194477=0.140402=10
+__rec=node,id=80,attr=61,data=MPI_Gather,parent=73
+__rec=ctx,ref=80=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000056=1.901594=0.146119=9.351633=64=9.351633=0.090181=9.351633=7.138016=64=0.095748=0.264428=0.585176=0.054648=11
+__rec=node,id=81,attr=61,data=MPI_Gather,parent=75
+__rec=ctx,ref=81=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.002964=11.595369=0.342265=21.904964=64=21.904964=2.016679=21.904964=136.564749=64=0.049168=0.878607=0.042582=0.029643=12
+__rec=node,id=82,attr=61,data=correctness_check,parent=63
+__rec=ctx,ref=82=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=11.090566=11.090566=11.090566=11.090566=1=11.090566=0.000000=11.090566=123.000655=1=0.666784=0.327675=0.005232=0.000308=14
+__rec=node,id=132,attr=10,data=512,parent=3
+__rec=node,id=138,attr=8,data=spot.channels,parent=132
+__rec=node,id=137,attr=8,data=spot.options,parent=132
+__rec=node,id=135,attr=10,data=512,parent=1
+__rec=node,id=136,attr=8,data=spot.format.version,parent=135
+__rec=node,id=134,attr=8,data=spot.timeseries.metrics,parent=132
+__rec=node,id=133,attr=8,data=spot.metrics,parent=132
+__rec=node,id=64,attr=10,data=1612,parent=1
+__rec=node,id=65,attr=8,data=mpi.world.size,parent=64
+__rec=node,id=16,attr=10,data=1612,parent=3
+__rec=node,id=17,attr=8,data=cali.caliper.version,parent=16
+__rec=node,id=18,attr=17,data=2.11.0-dev
+__rec=node,id=66,attr=65,data=64,parent=18
+__rec=node,id=139,attr=133,data=min#inclusive#sum#time.duration\,max#inclusive#sum#time.duration\,avg#inclusive#sum#time.duration\,sum#inclusive#sum#time.duration\,variance#inclusive#sum#time.duration\,any#any#topdown.retiring\,any#any#topdown.backend_bound\,any#any#topdown.frontend_bound\,any#any#topdown.bad_speculation\,min#min#aggregate.slot,parent=66
+__rec=node,id=140,attr=134,data=,parent=139
+__rec=node,id=141,attr=136,data=2,parent=140
+__rec=node,id=142,attr=137,data=time.variance\,topdown.toplevel\,node.order,parent=141
+__rec=node,id=143,attr=138,data=regionprofile,parent=142
+__rec=node,id=122,attr=8,data=spot:topdown.toplevel,parent=16
+__rec=node,id=123,attr=8,data=spot:time.variance,parent=16
+__rec=node,id=124,attr=8,data=spot:output,parent=16
+__rec=node,id=125,attr=8,data=spot:node.order,parent=16
+__rec=node,id=126,attr=8,data=cali.channel,parent=16
+__rec=node,id=127,attr=126,data=spot
+__rec=node,id=128,attr=125,data=true,parent=127
+__rec=node,id=129,attr=124,data=p64-a67108864-Random.cali,parent=128
+__rec=node,id=130,attr=123,data=true,parent=129
+__rec=node,id=131,attr=122,data=true,parent=130
+__rec=globals,ref=143=131

@@ -1,0 +1,103 @@
+__rec=node,id=12,attr=10,data=64,parent=3
+__rec=node,id=13,attr=8,data=attribute.alias,parent=12
+__rec=node,id=14,attr=8,data=attribute.unit,parent=12
+__rec=node,id=83,attr=14,data=sec,parent=5
+__rec=node,id=84,attr=13,data=Min time/rank,parent=83
+__rec=node,id=85,attr=10,data=65,parent=84
+__rec=node,id=86,attr=8,data=min#inclusive#sum#time.duration,parent=85
+__rec=node,id=87,attr=13,data=Max time/rank,parent=83
+__rec=node,id=88,attr=10,data=65,parent=87
+__rec=node,id=89,attr=8,data=max#inclusive#sum#time.duration,parent=88
+__rec=node,id=90,attr=13,data=Avg time/rank,parent=83
+__rec=node,id=91,attr=10,data=65,parent=90
+__rec=node,id=92,attr=8,data=avg#inclusive#sum#time.duration,parent=91
+__rec=node,id=95,attr=10,data=193,parent=5
+__rec=node,id=96,attr=8,data=avg.sum#inclusive#sum#time.duration,parent=95
+__rec=node,id=93,attr=10,data=193,parent=2
+__rec=node,id=94,attr=8,data=avg.count#inclusive#sum#time.duration,parent=93
+__rec=node,id=97,attr=13,data=Total time,parent=83
+__rec=node,id=98,attr=10,data=65,parent=97
+__rec=node,id=99,attr=8,data=sum#inclusive#sum#time.duration,parent=98
+__rec=node,id=100,attr=13,data=Variance time/rank,parent=5
+__rec=node,id=101,attr=10,data=65,parent=100
+__rec=node,id=102,attr=8,data=variance#inclusive#sum#time.duration,parent=101
+__rec=node,id=104,attr=8,data=var.sum#inclusive#sum#time.duration,parent=95
+__rec=node,id=105,attr=8,data=var.sqsum#inclusive#sum#time.duration,parent=95
+__rec=node,id=103,attr=8,data=var.count#inclusive#sum#time.duration,parent=93
+__rec=node,id=106,attr=13,data=Retiring,parent=5
+__rec=node,id=107,attr=10,data=65,parent=106
+__rec=node,id=108,attr=8,data=any#any#topdown.retiring,parent=107
+__rec=node,id=109,attr=13,data=Backend bound,parent=5
+__rec=node,id=110,attr=10,data=65,parent=109
+__rec=node,id=111,attr=8,data=any#any#topdown.backend_bound,parent=110
+__rec=node,id=112,attr=13,data=Frontend bound,parent=5
+__rec=node,id=113,attr=10,data=65,parent=112
+__rec=node,id=114,attr=8,data=any#any#topdown.frontend_bound,parent=113
+__rec=node,id=115,attr=13,data=Bad speculation,parent=5
+__rec=node,id=116,attr=10,data=65,parent=115
+__rec=node,id=117,attr=8,data=any#any#topdown.bad_speculation,parent=116
+__rec=node,id=118,attr=13,data=Node order,parent=2
+__rec=node,id=119,attr=10,data=65,parent=118
+__rec=node,id=120,attr=8,data=min#min#aggregate.slot,parent=119
+__rec=node,id=15,attr=8,data=spot.channel,parent=12
+__rec=node,id=121,attr=15,data=regionprofile
+__rec=ctx,ref=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.004367=0.398557=0.151097=9.670177=64=9.670177=0.015247=9.670177=2.436921=64=0.196584=0.147046=0.593449=0.062922=0
+__rec=node,id=60,attr=10,data=276,parent=3
+__rec=node,id=61,attr=8,data=region,parent=60
+__rec=node,id=62,attr=61,data=main
+__rec=ctx,ref=62=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=9.090965=12.809262=9.469472=606.046224=64=606.046224=0.519849=606.046224=5772.208225=64=0.243174=0.230599=0.448784=0.077443=1
+__rec=node,id=63,attr=61,data=main,parent=62
+__rec=ctx,ref=63=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=9.090899=12.809193=9.469403=606.041807=64=606.041807=0.519847=606.041807=5772.124455=64=0.449160=0.076145=0.431044=0.043650=2
+__rec=node,id=67,attr=61,data=data_init,parent=63
+__rec=ctx,ref=67=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.143104=0.143104=0.143104=0.143104=1=0.143104=0.000000=0.143104=0.020479=1=0.390971=0.509291=0.083057=0.016681=3
+__rec=node,id=72,attr=61,data=comm,parent=63
+__rec=ctx,ref=72=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.230641=0.562197=0.420118=26.887543=64=26.887543=0.005806=26.887543=11.667535=64=0.321032=0.122908=0.485473=0.070587=3
+__rec=node,id=73,attr=61,data=comm_small,parent=72
+__rec=ctx,ref=73=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.173138=0.550417=0.400425=25.627209=64=25.627209=0.005974=25.627209=10.644098=64=0.247457=0.076117=0.625805=0.050621=4
+__rec=node,id=74,attr=61,data=MPI_Bcast,parent=73
+__rec=ctx,ref=74=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000371=0.550268=0.384902=24.633721=64=24.633721=0.008211=24.633721=10.007058=64=0.127056=0.423609=0.374307=0.075028=5
+__rec=node,id=75,attr=61,data=comm_large,parent=72
+__rec=ctx,ref=75=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000137=0.124861=0.019445=1.244468=64=1.244468=0.000363=1.244468=0.047420=64=0.194951=0.092817=0.671323=0.040910=6
+__rec=node,id=76,attr=61,data=MPI_Scatter,parent=75
+__rec=ctx,ref=76=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000046=0.042107=0.017400=1.113604=64=1.113604=0.000191=1.113604=0.031580=64=0.113630=0.580491=0.209395=0.096484=7
+__rec=node,id=77,attr=61,data=comp,parent=63
+__rec=ctx,ref=77=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000429=0.036547=0.001938=0.124031=64=0.124031=0.000029=0.124031=0.002092=64=0.374736=0.086542=0.466143=0.072580=8
+__rec=node,id=78,attr=61,data=comp_large,parent=77
+__rec=ctx,ref=78=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000339=0.036434=0.001611=0.103073=64=0.103073=0.000026=0.103073=0.001850=64=0.653750=0.087678=0.243857=0.014715=9
+__rec=node,id=79,attr=61,data=comp_small,parent=77
+__rec=ctx,ref=79=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000012=0.000805=0.000025=0.001621=64=0.001621=0.000000=0.001621=0.000001=64=0.561292=0.215446=0.176125=0.047137=10
+__rec=node,id=80,attr=61,data=MPI_Gather,parent=73
+__rec=ctx,ref=80=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000038=0.172658=0.015405=0.985909=64=0.985909=0.000654=0.985909=0.057048=64=0.051076=0.150279=0.767776=0.030870=11
+__rec=node,id=81,attr=61,data=MPI_Gather,parent=75
+__rec=ctx,ref=81=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.000033=0.124025=0.001976=0.126446=64=0.126446=0.000236=0.126446=0.015382=64=0.097595=0.569328=0.264106=0.068972=12
+__rec=node,id=82,attr=61,data=correctness_check,parent=63
+__rec=ctx,ref=82=121,attr=86=89=92=96=94=99=102=104=105=103=108=111=114=117=120,data=0.005470=0.005470=0.005470=0.005470=1=0.005470=0.000000=0.005470=0.000030=1=0.589786=0.278622=0.123979=0.007613=14
+__rec=node,id=132,attr=10,data=512,parent=3
+__rec=node,id=138,attr=8,data=spot.channels,parent=132
+__rec=node,id=137,attr=8,data=spot.options,parent=132
+__rec=node,id=135,attr=10,data=512,parent=1
+__rec=node,id=136,attr=8,data=spot.format.version,parent=135
+__rec=node,id=134,attr=8,data=spot.timeseries.metrics,parent=132
+__rec=node,id=133,attr=8,data=spot.metrics,parent=132
+__rec=node,id=64,attr=10,data=1612,parent=1
+__rec=node,id=65,attr=8,data=mpi.world.size,parent=64
+__rec=node,id=16,attr=10,data=1612,parent=3
+__rec=node,id=17,attr=8,data=cali.caliper.version,parent=16
+__rec=node,id=18,attr=17,data=2.11.0-dev
+__rec=node,id=66,attr=65,data=64,parent=18
+__rec=node,id=139,attr=133,data=min#inclusive#sum#time.duration\,max#inclusive#sum#time.duration\,avg#inclusive#sum#time.duration\,sum#inclusive#sum#time.duration\,variance#inclusive#sum#time.duration\,any#any#topdown.retiring\,any#any#topdown.backend_bound\,any#any#topdown.frontend_bound\,any#any#topdown.bad_speculation\,min#min#aggregate.slot,parent=66
+__rec=node,id=140,attr=134,data=,parent=139
+__rec=node,id=141,attr=136,data=2,parent=140
+__rec=node,id=142,attr=137,data=time.variance\,topdown.toplevel\,node.order,parent=141
+__rec=node,id=143,attr=138,data=regionprofile,parent=142
+__rec=node,id=122,attr=8,data=spot:topdown.toplevel,parent=16
+__rec=node,id=123,attr=8,data=spot:time.variance,parent=16
+__rec=node,id=124,attr=8,data=spot:output,parent=16
+__rec=node,id=125,attr=8,data=spot:node.order,parent=16
+__rec=node,id=126,attr=8,data=cali.channel,parent=16
+__rec=node,id=127,attr=126,data=spot
+__rec=node,id=128,attr=125,data=true,parent=127
+__rec=node,id=129,attr=124,data=p64-a262144-ReverseSorted.cali,parent=128
+__rec=node,id=130,attr=123,data=true,parent=129
+__rec=node,id=131,attr=122,data=true,parent=130
+__rec=globals,ref=143=131

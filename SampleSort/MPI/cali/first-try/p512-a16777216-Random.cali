@@ -1,0 +1,74 @@
+__rec=node,id=12,attr=10,data=64,parent=3
+__rec=node,id=13,attr=8,data=attribute.alias,parent=12
+__rec=node,id=14,attr=8,data=attribute.unit,parent=12
+__rec=node,id=63,attr=14,data=sec,parent=5
+__rec=node,id=64,attr=13,data=Min time/rank,parent=63
+__rec=node,id=65,attr=10,data=65,parent=64
+__rec=node,id=66,attr=8,data=min#inclusive#sum#time.duration,parent=65
+__rec=node,id=67,attr=13,data=Max time/rank,parent=63
+__rec=node,id=68,attr=10,data=65,parent=67
+__rec=node,id=69,attr=8,data=max#inclusive#sum#time.duration,parent=68
+__rec=node,id=70,attr=13,data=Avg time/rank,parent=63
+__rec=node,id=71,attr=10,data=65,parent=70
+__rec=node,id=72,attr=8,data=avg#inclusive#sum#time.duration,parent=71
+__rec=node,id=75,attr=10,data=193,parent=5
+__rec=node,id=76,attr=8,data=avg.sum#inclusive#sum#time.duration,parent=75
+__rec=node,id=73,attr=10,data=193,parent=2
+__rec=node,id=74,attr=8,data=avg.count#inclusive#sum#time.duration,parent=73
+__rec=node,id=77,attr=13,data=Total time,parent=63
+__rec=node,id=78,attr=10,data=65,parent=77
+__rec=node,id=79,attr=8,data=sum#inclusive#sum#time.duration,parent=78
+__rec=node,id=80,attr=13,data=Variance time/rank,parent=5
+__rec=node,id=81,attr=10,data=65,parent=80
+__rec=node,id=82,attr=8,data=variance#inclusive#sum#time.duration,parent=81
+__rec=node,id=84,attr=8,data=var.sum#inclusive#sum#time.duration,parent=75
+__rec=node,id=85,attr=8,data=var.sqsum#inclusive#sum#time.duration,parent=75
+__rec=node,id=83,attr=8,data=var.count#inclusive#sum#time.duration,parent=73
+__rec=node,id=86,attr=13,data=Retiring,parent=5
+__rec=node,id=87,attr=10,data=65,parent=86
+__rec=node,id=88,attr=8,data=any#any#topdown.retiring,parent=87
+__rec=node,id=89,attr=13,data=Backend bound,parent=5
+__rec=node,id=90,attr=10,data=65,parent=89
+__rec=node,id=91,attr=8,data=any#any#topdown.backend_bound,parent=90
+__rec=node,id=92,attr=13,data=Frontend bound,parent=5
+__rec=node,id=93,attr=10,data=65,parent=92
+__rec=node,id=94,attr=8,data=any#any#topdown.frontend_bound,parent=93
+__rec=node,id=95,attr=13,data=Bad speculation,parent=5
+__rec=node,id=96,attr=10,data=65,parent=95
+__rec=node,id=97,attr=8,data=any#any#topdown.bad_speculation,parent=96
+__rec=node,id=98,attr=13,data=Node order,parent=2
+__rec=node,id=99,attr=10,data=65,parent=98
+__rec=node,id=100,attr=8,data=min#min#aggregate.slot,parent=99
+__rec=node,id=15,attr=8,data=spot.channel,parent=12
+__rec=node,id=101,attr=15,data=regionprofile
+__rec=ctx,ref=101,attr=66=69=72=76=74=79=82=84=85=83=88=91=94=97=100,data=0.298566=0.298566=0.298566=0.298566=1=0.298566=0.000000=0.298566=0.089142=1=0.251249=0.139666=0.532445=0.076640=0
+__rec=node,id=60,attr=10,data=276,parent=3
+__rec=node,id=61,attr=8,data=region,parent=60
+__rec=node,id=62,attr=61,data=main
+__rec=ctx,ref=62=101,attr=66=69=72=76=74=79=82=84=85=83=88=91=94=97=100,data=0.000065=0.000065=0.000065=0.000065=1=0.000065=0.000000=0.000065=0.000000=1=0.261094=0.218575=0.437224=0.083107=1
+__rec=node,id=112,attr=10,data=512,parent=3
+__rec=node,id=118,attr=8,data=spot.channels,parent=112
+__rec=node,id=117,attr=8,data=spot.options,parent=112
+__rec=node,id=115,attr=10,data=512,parent=1
+__rec=node,id=116,attr=8,data=spot.format.version,parent=115
+__rec=node,id=114,attr=8,data=spot.timeseries.metrics,parent=112
+__rec=node,id=113,attr=8,data=spot.metrics,parent=112
+__rec=node,id=16,attr=10,data=1612,parent=3
+__rec=node,id=17,attr=8,data=cali.caliper.version,parent=16
+__rec=node,id=18,attr=17,data=2.11.0-dev
+__rec=node,id=119,attr=113,data=min#inclusive#sum#time.duration\,max#inclusive#sum#time.duration\,avg#inclusive#sum#time.duration\,sum#inclusive#sum#time.duration\,variance#inclusive#sum#time.duration\,any#any#topdown.retiring\,any#any#topdown.backend_bound\,any#any#topdown.frontend_bound\,any#any#topdown.bad_speculation\,min#min#aggregate.slot,parent=18
+__rec=node,id=120,attr=114,data=,parent=119
+__rec=node,id=121,attr=116,data=2,parent=120
+__rec=node,id=122,attr=117,data=time.variance\,topdown.toplevel\,node.order,parent=121
+__rec=node,id=123,attr=118,data=regionprofile,parent=122
+__rec=node,id=102,attr=8,data=spot:topdown.toplevel,parent=16
+__rec=node,id=103,attr=8,data=spot:time.variance,parent=16
+__rec=node,id=104,attr=8,data=spot:output,parent=16
+__rec=node,id=105,attr=8,data=spot:node.order,parent=16
+__rec=node,id=106,attr=8,data=cali.channel,parent=16
+__rec=node,id=107,attr=106,data=spot
+__rec=node,id=108,attr=105,data=true,parent=107
+__rec=node,id=109,attr=104,data=p512-a16777216-Random.cali,parent=108
+__rec=node,id=110,attr=103,data=true,parent=109
+__rec=node,id=111,attr=102,data=true,parent=110
+__rec=globals,ref=123=111

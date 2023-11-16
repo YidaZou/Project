@@ -203,15 +203,11 @@ int main(int argc, char *argv[]) {
       fprintf(stderr, "cudaMalloc failed! Error: %s\n", cudaGetErrorString(cudaStatus));
       return 1;
   }
-
-  CALI_MARK_BEGIN("comm_small");
   cudaStatus = cudaMemcpy(device_arr, host_arr, sizeof(int) * NUM_VALS, cudaMemcpyHostToDevice);
   if (cudaStatus != cudaSuccess) {
       fprintf(stderr, "cudaMemcpy (host to device) failed! Error: %s\n", cudaGetErrorString(cudaStatus));
       return 1;
   }
-  CALI_MARK_END("comm_small");
-
   cudaStatus = cudaMalloc((void **)&temp, sizeof(int) * NUM_VALS);
   if (cudaStatus != cudaSuccess) {
       fprintf(stderr, "cudaMalloc (temp) failed! Error: %s\n", cudaGetErrorString(cudaStatus));
@@ -226,18 +222,22 @@ int main(int argc, char *argv[]) {
   /////// CUDA computation region //////////
   CALI_MARK_BEGIN("comp");
   CALI_MARK_BEGIN("comp_large");
-
-  CALI_MARK_BEGIN("comp_small");
   mergeSort<<<BLOCKS, THREADS>>>(device_arr, temp, NUM_VALS);
   cudaDeviceSynchronize();
-  CALI_MARK_END("comp_small");
-
   CALI_MARK_END("comp_large");
   CALI_MARK_END("comp");
   /////// End of CUDA computation region //////////
 
 
-  cudaMemcpy(host_arr, device_arr, sizeof(int) * NUM_VALS, cudaMemcpyDeviceToHost);
+  CALI_MARK_BEGIN("comm");
+  CALI_MARK_BEGIN("comm_large");
+  cudaStatus = cudaMemcpy(host_arr, device_arr, sizeof(int) * NUM_VALS, cudaMemcpyDeviceToHost);
+  if (cudaStatus != cudaSuccess) {
+      fprintf(stderr, "cudaMemcpy (device to host) failed! Error: %s\n", cudaGetErrorString(cudaStatus));
+      return 1;
+  }
+  CALI_MARK_END("comm_large");
+  CALI_MARK_END("comm");
 
 
   CALI_MARK_BEGIN("correctness_check");

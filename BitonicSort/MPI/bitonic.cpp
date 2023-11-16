@@ -33,13 +33,63 @@ const char *correctness_check = "correctness_check";
 float random_float() {
     return (float)rand() / (float)RAND_MAX;
 }
+void array_fill_random(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  for (i = 0; i < length; ++i) {
+    arr[i] = random_float();
+  }
+}
 
-void array_fill(float *arr, int length) {
-    srand(time(NULL));
-    int i;
-    for (i = 0; i < length; ++i) {
-        arr[i] = random_float();
-    }
+void array_fill_sorted(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  for (i = 0; i < length; ++i) {
+    arr[i] = i;
+  }
+}
+
+void array_fill_reverseSorted(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  for (i = 0; i < length; ++i) {
+    arr[i] = length-1 - i;
+  }
+}
+
+void array_fill_1perturbed(float *arr, int length)
+{
+  srand(time(NULL));
+  int i;
+  int perturb = length/100;
+  for (i = 0; i < length; ++i) {
+    if(i % perturb == 0)
+      arr[i] = random_float();
+    else
+      arr[i] = i;
+  }
+}
+
+void array_fill(float *values, float NUM_VALS) {
+  if(TYPE == "Random"){
+    array_fill_random(values, NUM_VALS);
+  }
+  else if(TYPE == "Sorted"){
+    array_fill_sorted(values, NUM_VALS);
+  }
+  else if(TYPE == "ReverseSorted"){
+    array_fill_reverseSorted(values, NUM_VALS);
+  }
+  else if(TYPE == "1%perturbed"){
+    array_fill_1perturbed(values, NUM_VALS);
+  }
+  else{
+    printf("Error: Invalid input type\n");
+    return;
+  }
 }
 
 bool check_sorted(const float *arr, int length) {
@@ -52,17 +102,10 @@ bool check_sorted(const float *arr, int length) {
     return true;
 }
 
-int compare_floats(const void *a_ptr, const void *b_ptr) {
-    float value_a = *(const float *)a_ptr;
-    float value_b = *(const float *)b_ptr;
-
-    if (value_a < value_b) {
-        return -1;
-    } else if (value_a > value_b) {
-        return 1;
-    } else {
-        return 0;
-    }
+int compare_floats(const void *a, const void *b) {
+    float fa = *(const float*) a;
+    float fb = *(const float*) b;
+    return (fa > fb) - (fa < fb);
 }
 
 void bitonic_high(int stage_bit) {

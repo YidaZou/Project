@@ -8,15 +8,13 @@
 3. Sam Hollenbeck
 4. Alex Pantazopol
 
-## 2. Project topic (e.g., parallel sorting algorithms)
-
-## 2. _due 10/25_ Project topic
+## 2. Project topic
 
 We chose to use the suggested topic idea:
 
 Choose 3+ parallel sorting algorithms, implement in MPI and CUDA.  Examine and compare performance in detail (computation time, communication time, how much data is sent) on a variety of inputs: sorted, random, reverse, sorted with 1% perturbed, etc.  Strong scaling, weak scaling, GPU performance.
 
-## 2. _due 10/25_ Brief project description (what algorithms will you be comparing and on what architectures)
+## 2. Project description
 
 We will communicate via iMessage.
 
@@ -36,7 +34,7 @@ To vary our algorithms, we will apply the following communication and paralleliz
 - point-to-point communication
 
   
-## 3. due 11/08 Pseudocode for each algorithm and implementation
+## 3. Pseudocode
 ```
 function SampleSort(unsortedList, t):  //t = thread count
     //Divide input into samples depending on number of threads
@@ -102,7 +100,7 @@ function void bitonic_sort(arr, numThreads) {
 }
 
 ```
-## 3. due 11/08 Evaluation plan - what and how will you measure and compare
+## 3. Evaluation plan
 Some of the things we will compare are:
 
 Runtimes between parallel sorting algorithms on GPU and CPU (MPI vs CUDA)
@@ -254,6 +252,8 @@ They will show up in the `Thicket.metadata` if the caliper file is read into Thi
 Include detailed analysis of computation performance, communication performance. 
 Include figures and explanation of your analysis.
 
+
+
 ### 4a. Vary the following parameters
 For inputSizes:
 - 2^16, 2^18, 2^20, 2^22, 2^24, 2^26, 2^28
@@ -265,7 +265,7 @@ num_procs, num_threads:
 - MPI: num_procs:
     - 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024
 - CUDA: num_threads:
-    - 64, 128, 256, 512, 1024, 2048, 4096
+    - 64, 128, 256, 512, 1024
 
 This should result in 4x7x10=280 Caliper files for your MPI experiments.
 

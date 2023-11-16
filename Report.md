@@ -1,6 +1,6 @@
 # CSCE 435 Group project
 
-## 0. Group number: 
+## 0. Group number:
 6
 ## 1. Group members:
 1. Yida Zou
@@ -33,17 +33,17 @@ To vary our algorithms, we will apply the following communication and paralleliz
 - fork/join parallelism
 - point-to-point communication
 
-  
+
 ## 3. Pseudocode
 ```
 function SampleSort(unsortedList, t):  //t = thread count
     //Divide input into samples depending on number of threads
     sampleSize = calculateSampleSize(unsortedList, t)
     sample = selectSample(unsortedList, sampleSize)
-    
-    //Distribute the sample to all processors 
+
+    //Distribute the sample to all processors
     distribute(sample)  //Using MPI
-    
+
     //Each thread sorts the given sample locally
     sortedSample = sortLocally(sample)    //sort using cudaMemcpy
 
@@ -52,7 +52,7 @@ function SampleSort(unsortedList, t):  //t = thread count
 
     //Merge and sort all samples together
     sortedLists = mergeSublists(sortedSamples)
-    
+
     return sortedSublist
 ```
 ```
@@ -113,16 +113,19 @@ Currently, we only have graphs generated of Random InputType for our 6 algorithm
 
 ## 4. Performance evaluation
 
-Include detailed analysis of computation performance, communication performance. 
+Include detailed analysis of computation performance, communication performance.
 Include figures and explanation of your analysis.
 
 ### Sample Sort CUDA
 Graphs:
 https://github.com/YidaZou/Project/blob/master/Analysis/sampleSortCUDA/sampleSortCUDA_Graphs.pdf
 
-There is a significant increase in time across all number of threads as the input size increases. 
+There is a significant increase in time across all number of threads as the input size increases.
 The time seems to be holding constant over all number of threads for all input sizes. This may be a problem of my sorting algorithm not working correctly.
 At least, in comp_large, the 2^12 input size seems to show somewhat of a downward trend in time as the number of threads increases.
+
+### Sample Sort MPI
+There is in increase in computational and communication time as the size to be sorted increases. It is expected that as the computational and comunicaiton time will decrease with an increased number of threads. It is expected that there are marginal differences between the differnt types of array population: random, sorted, reverse sorted, and 1% perturped. While one would expect a sorted array to have statistically significant reduction in time say compared to a randomly sorted aray, the overhead of communication time and the computational splitting make the differnce less prevelant. I was not able to collect all of the .cali files for every combination of parameters. Specifically, my jobs with 512 and 1024 number of threads either timed out or failed due to nodes being killed on Grace. I plan to provide graphs and every parameter combination of .cali files before the completion of the project.
 
 
 ### 4a. Vary the following parameters
@@ -149,9 +152,9 @@ To automate running a set of experiments, parameterize your program.
 - num_procs:   How many MPI ranks you are using
 - num_threads: Number of CUDA or OpenMP threads
 
-When your program works with these parameters, you can write a shell script 
-that will run a for loop over the parameters above (e.g., on 64 processors, 
-perform runs that invoke algorithm2 for Sorted, ReverseSorted, and Random data).  
+When your program works with these parameters, you can write a shell script
+that will run a for loop over the parameters above (e.g., on 64 processors,
+perform runs that invoke algorithm2 for Sorted, ReverseSorted, and Random data).
 
 ### 4c. You should measure the following performance metrics
 - `Time`

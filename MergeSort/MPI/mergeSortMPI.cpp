@@ -186,13 +186,6 @@ int main(int argc, char** argv) {
   int rank, size, input_size;
   std::string input_type;
 
-  if (argc != 4)
-    {
-        std::cerr << "Usage: " << argv[0] << "<num_processors> <arry_size> <input_type>" << std::endl;
-        MPI_Finalize();
-        return 1;
-    }
-
   size = atoi(argv[1]);
   input_size = atoi(argv[2]);
   input_type = argv[3];
@@ -213,33 +206,45 @@ int main(int argc, char** argv) {
   int local_size = input_size / size;
   int* local_arr = (int*)malloc(sizeof(int) * local_size);
 
-
-  
-  // MPI communication regions
+  // MPI Communication
   CALI_MARK_BEGIN("comm");
+
+  CALI_MARK_BEGIN("MPI_Barrier");
+  MPI_Barrier(MPI_COMM_WORLD);
+  CALI_MARK_END("MPI_Barrier");
+
   CALI_MARK_BEGIN("comm_large");
-
-  //MPI_Barrier(MPI_COMM_WORLD);
-
-  // Scatter data to all processes
-  //MPI_Scatter(global_array, input_size, MPI_INT, NULL, input_size, MPI_INT, 0, MPI_COMM_WORLD);
+  CALI_MARK_BEGIN("MPI_Scatter");
   MPI_Scatter(&global_array[0], local_size, MPI_INT, &local_arr[0], local_size, MPI_INT, 0, MPI_COMM_WORLD);
-  
+  CALI_MARK_END("MPI_Scatter");
   CALI_MARK_END("comm_large");
+
   CALI_MARK_END("comm");
 
-  // Merge Computation
+
+  // Merge Computation Region
   CALI_MARK_BEGIN("comp");
   CALI_MARK_BEGIN("comp_large");
   mergeSort(local_arr, 0, local_size - 1);
   CALI_MARK_END("comp_large");
   CALI_MARK_END("comp");
 
+
+  // MPI communication region
   CALI_MARK_BEGIN("comm");
-  CALI_MARK_BEGIN("comm_small");
+
+  CALI_MARK_BEGIN("MPI_Barrier");
+  MPI_Barrier(MPI_COMM_WORLD);
+  CALI_MARK_END("MPI_Barrier");
+
+  CALI_MARK_BEGIN("comm_large");
+  CALI_MARK_BEGIN("MPI_Gather");
   MPI_Gather(&local_arr[0], local_size, MPI_INT, &global_array[0], local_size, MPI_INT, 0, MPI_COMM_WORLD);
-  CALI_MARK_END("comm_small");
+  CALI_MARK_END("MPI_Gather");
+  CALI_MARK_END("comm_large");
+
   CALI_MARK_END("comm");
+
 
   // Perform final merge on the root process
     if (rank == 0)
@@ -272,12 +277,13 @@ int main(int argc, char** argv) {
   adiak::value("ProgrammingModel", "MPI"); // e.g., "MPI", "CUDA", "MPIwithCUDA"
   adiak::value("Datatype", "int"); // The datatype of input elements (e.g., double, int, float)
   adiak::value("SizeOfDatatype", sizeof(int)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
-  adiak::value("InputSize", 1000); // The number of elements in input dataset (1000)
+  adiak::value("InputSize", input_size); // The number of elements in input dataset (1000)
   adiak::value("InputType", input_type); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
   adiak::value("num_procs", size); // The number of processors (MPI ranks)
   adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)
   adiak::value("implementation_source", "AI"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
 
   CALI_MARK_END("main");
+
   return 0;
 }

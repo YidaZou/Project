@@ -213,28 +213,21 @@ int main(int argc, char** argv) {
   int local_size = input_size / size;
   int* local_arr = (int*)malloc(sizeof(int) * local_size);
 
-
-  
-  // MPI communication regions
+  // MPI communication region
   CALI_MARK_BEGIN("comm");
   CALI_MARK_BEGIN("comm_large");
-
-  //MPI_Barrier(MPI_COMM_WORLD);
-
-  // Scatter data to all processes
-  //MPI_Scatter(global_array, input_size, MPI_INT, NULL, input_size, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Scatter(&global_array[0], local_size, MPI_INT, &local_arr[0], local_size, MPI_INT, 0, MPI_COMM_WORLD);
-  
   CALI_MARK_END("comm_large");
   CALI_MARK_END("comm");
 
-  // Merge Computation
+  // Merge Computation Region
   CALI_MARK_BEGIN("comp");
   CALI_MARK_BEGIN("comp_large");
   mergeSort(local_arr, 0, local_size - 1);
   CALI_MARK_END("comp_large");
   CALI_MARK_END("comp");
 
+  // MPI communication region
   CALI_MARK_BEGIN("comm");
   CALI_MARK_BEGIN("comm_small");
   MPI_Gather(&local_arr[0], local_size, MPI_INT, &global_array[0], local_size, MPI_INT, 0, MPI_COMM_WORLD);
@@ -272,12 +265,13 @@ int main(int argc, char** argv) {
   adiak::value("ProgrammingModel", "MPI"); // e.g., "MPI", "CUDA", "MPIwithCUDA"
   adiak::value("Datatype", "int"); // The datatype of input elements (e.g., double, int, float)
   adiak::value("SizeOfDatatype", sizeof(int)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
-  adiak::value("InputSize", 1000); // The number of elements in input dataset (1000)
+  adiak::value("InputSize", input_size); // The number of elements in input dataset (1000)
   adiak::value("InputType", input_type); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
   adiak::value("num_procs", size); // The number of processors (MPI ranks)
   adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)
   adiak::value("implementation_source", "AI"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
 
   CALI_MARK_END("main");
+
   return 0;
 }

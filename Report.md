@@ -129,11 +129,18 @@ There is in increase in computational and communication time as the size to be s
 
 ### Bitonic Sort CUDA
 
-Although graphs were not completed in time, we can expect an increase in the computational and communication time as the size of the array increase. We can also expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. As we increase the number of processes, the algorithmic runtime should decrease.
-
+Although graphs were not completed in time, we can expect an increase in the computational and communication time as the size of the array increase. We can also expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. Additionally, as we change the different array populations such as random, sorted, reverse sorted, and 1% perturped, we can expect slight differences in our runtimes. For instance, a “sorted” array  should have significantly less runtime than an unsorted array. Unfortunately, I was unable to collect all of my .cali files for submission. My jobs got stuck in the grace queue as many students were scrambling to finish their caliper files for this project. I plan to finish my graphs and my .cali files by the end of the project to provide a more cohesive analysis. 
 ### Bitonic Sort MPI
 
-Although graphs were not completed in time, we can expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of processes. As we increase the number of processes, the algorithmic runtime should decrease.
+Although graphs were not completed in time, we can expect an increase in the computational and communication time as the size of the array increase. We can also expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. Additionally, as we change the different array populations such as random, sorted, reverse sorted, and 1% perturped, we can expect slight differences in our runtimes. For instance, a “sorted” array  should have significantly less runtime than an unsorted array. Unfortunately, I was unable to collect all of my .cali files for submission. My jobs got stuck in the grace queue as many students were scrambling to finish their caliper files for this project. I plan to finish my graphs and my .cali files by the end of the project to provide a more cohesive analysis. 
+
+### Merge Sort MPI
+
+As the number of processers increases, the runtime of the mergesort algorithm runtime decreases up until a point of diminshing returns. This is because the communication time will increase, with more workers splitting up the overall task. A graph will be provided to show these trends in detail.
+
+### Merge Sort CUDA
+
+As the number of threads increases, the runtime of the mergesort algorithm runtime decreases up until a point of diminshing returns. This is because the communication time increases between chunks of the algorithm. A graph will be provided to show these trends in detail.
 
 ### 4a. Vary the following parameters
 For inputSizes:

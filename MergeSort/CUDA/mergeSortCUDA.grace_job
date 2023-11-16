@@ -28,6 +28,6 @@ module load intel/2020b
 module load GCCcore/7.3.0
 #
 
-CALI_CONFIG="spot(output=cali_files/mergeSortCUDA-${num_threads}-${num_vals}-${input_type}.cali), \
+CALI_CONFIG="spot(output=cali_files/mergeSortCUDA-t${num_threads}-a${num_vals}-${input_type}.cali), \
     cuda.gputime" \
 ./mergeSortCUDA $num_threads $num_vals $input_type

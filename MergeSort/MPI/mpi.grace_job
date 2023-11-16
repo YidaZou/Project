@@ -23,6 +23,6 @@ input_type=$3
 module load intel/2020b       # load Intel software stack
 module load CMake/3.12.1
 
-CALI_CONFIG="spot(output=p${processes}-a${array_size}-${input_type}.cali, \
+CALI_CONFIG="spot(output=cali_files/mergeSortMPI-p${processes}-a${array_size}-${input_type}.cali, \
     time.variance)" \
 mpirun -np $processes ./mergesort $processes $array_size $input_type

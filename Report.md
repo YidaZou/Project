@@ -129,12 +129,10 @@ There is in increase in computational and communication time as the size to be s
 
 ### Bitonic Sort CUDA
 
-Although graphs were not completed in time, we can expect an increase in the computational and communication time as the size of the array increase. We can also expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. As we increase the number of processes, the algorithmic runtime should decrease.
-
+Although graphs were not completed in time, we can expect an increase in the computational and communication time as the size of the array increase. We can also expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. Additionally, as we change the different array populations such as random, sorted, reverse sorted, and 1% perturped, we can expect slight differences in our runtimes. For instance, a “sorted” array  should have significantly less runtime than an unsorted array. Unfortunately, I was unable to collect all of my .cali files for submission. My jobs got stuck in the grace queue as many students were scrambling to finish their caliper files for this project. I plan to finish my graphs and my .cali files by the end of the project to provide a more cohesive analysis. 
 ### Bitonic Sort MPI
 
-Although graphs were not completed in time, we can expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of processes. As we increase the number of processes, the algorithmic runtime should decrease.
-
+Although graphs were not completed in time, we can expect an increase in the computational and communication time as the size of the array increase. We can also expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. Additionally, as we change the different array populations such as random, sorted, reverse sorted, and 1% perturped, we can expect slight differences in our runtimes. For instance, a “sorted” array  should have significantly less runtime than an unsorted array. Unfortunately, I was unable to collect all of my .cali files for submission. My jobs got stuck in the grace queue as many students were scrambling to finish their caliper files for this project. I plan to finish my graphs and my .cali files by the end of the project to provide a more cohesive analysis. 
 ### 4a. Vary the following parameters
 For inputSizes:
 - 2^16, 2^18, 2^20, 2^22, 2^24, 2^26, 2^28

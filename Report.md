@@ -124,6 +124,14 @@ There is a significant increase in time across all number of threads as the inpu
 The time seems to be holding constant over all number of threads for all input sizes. This may be a problem of my sorting algorithm not working correctly.
 At least, in comp_large, the 2^12 input size seems to show somewhat of a downward trend in time as the number of threads increases.
 
+### Bitonic Sort CUDA
+
+Although graphs were not completed in time, we can expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. As we increase the number of processes, the algorithmic runtime should decrease.
+
+### Bitonic Sort MPI
+
+Although graphs were not completed in time, we can expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of processes. As we increase the number of processes, the algorithmic runtime should decrease.
+
 
 ### 4a. Vary the following parameters
 For inputSizes:

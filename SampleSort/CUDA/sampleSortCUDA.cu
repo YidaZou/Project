@@ -5,10 +5,6 @@
 #include <caliper/cali.h>
 #include <caliper/cali-manager.h>
 #include <adiak.hpp>
-#include <cuda_runtime.h>
-#include <cuda.h>
-#include <string.h>
-#include <iostream>
 
 int THREADS;
 int BLOCKS;
@@ -411,14 +407,11 @@ void sample_sort(float* values) {
 }
 
 int main(int argc, char *argv[]) {
+  CALI_CXX_MARK_FUNCTION;
   THREADS = atoi(argv[1]);
   NUM_VALS = atoi(argv[2]);
   TYPE = argv[3];
   BLOCKS = NUM_VALS / THREADS;
-
-  //cali config manager
-  cali::ConfigManager mgr;
-  mgr.start();
 
   float *values = (float*)malloc(NUM_VALS * sizeof(float));
 
@@ -448,11 +441,5 @@ int main(int argc, char *argv[]) {
   adiak::value("num_blocks", BLOCKS); // The number of CUDA blocks 
   adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)
   adiak::value("implementation_source", "AI+Handwritten"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
-
-  // Clean up
-  mgr.stop();
-  mgr.flush();
-
-  return 0;
 }
 

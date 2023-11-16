@@ -129,7 +129,7 @@ There is in increase in computational and communication time as the size to be s
 
 ### Bitonic Sort CUDA
 
-Although graphs were not completed in time, we can expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. As we increase the number of processes, the algorithmic runtime should decrease.
+Although graphs were not completed in time, we can expect an increase in the computational and communication time as the size of the array increase. We can also expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. As we increase the number of processes, the algorithmic runtime should decrease.
 
 ### Bitonic Sort MPI
 

@@ -77,22 +77,15 @@ static int comparable(const void *i, const void *j) {
 }
 
 int main(int argc, char** argv) {
-	CALI_CXX_MARK_FUNCTION;
-	CALI_MARK_BEGIN("main");
-
-	cali::ConfigManager mgr;
-	mgr.start();
-
 	// Variable Declarations
 	int numProcs, rank, root = 0;
 	int i, j, k, countElements, countElementsLocal, countElementsToSort;
 	int count, temp;
-	int *input, *inputData;
-	int *splitter, *splitterGlobal;
-	int *buckets, *bucketBuf, *bucketLocal;
-	int *outputBuf, *output;
+	int *arrayGlobal, *arrayLocal;
+	int *splitterLocal, *splitterGlobal;
+	int *bucketGlobal, *bucketLocalBuf, *bucketLocal;
+	int *outputBuf;
 	std::string inputType;
-	FILE *inputFile, *fp;
 	MPI_Status status;
 
 	// Initializing
@@ -102,25 +95,32 @@ int main(int argc, char** argv) {
 	MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+	CALI_CXX_MARK_FUNCTION;
+	CALI_MARK_BEGIN("main");
+
+	cali::ConfigManager mgr;
+	mgr.start();
+
 	/**** Reading Input ****/
-	printf("Rank %d: Reading Input\n", rank);
+	//printf("Rank %d: Reading Input\n", rank);
 
 	if (rank == root){
 
 		countElements = atoi(argv[2]);
-		input = (int *) malloc (countElements*sizeof(int));
-		if(input == NULL) {
+		arrayGlobal = (int *) malloc (countElements*sizeof(int));
+		//printf("Memory: %d:\n", countElements*sizeof(int));
+		if(arrayGlobal == NULL) {
 			printf("Error : Can not allocate memory \n");
 		}
 
 		/* Initialise random number generator  */
 		inputType = argv[3];
-		dataInit(input, inputType, countElements);
+		dataInit(arrayGlobal, inputType, countElements);
 		printf ( "\n\n ");
 	}
 
 	/**** Sending Data ****/
-	printf("Rank %d: Sending Data\n", rank);
+	//printf("Rank %d: Sending Data\n", rank);
 	MPI_Bcast (&countElements, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	if(( countElements % numProcs) != 0){
 			if(rank == root)
@@ -130,86 +130,92 @@ int main(int argc, char** argv) {
 	}
 
 	countElementsLocal = countElements / numProcs;
-	inputData = (int *) malloc (countElementsLocal * sizeof (int));
+	arrayLocal = (int *) malloc (countElementsLocal * sizeof (int));
+	//printf("Memory: %d:\n", countElementsLocal*sizeof(int));
 
-	MPI_Scatter(input, countElementsLocal, MPI_INT, inputData,
+	MPI_Scatter(arrayGlobal, countElementsLocal, MPI_INT, arrayLocal,
 					countElementsLocal, MPI_INT, root, MPI_COMM_WORLD);
 
 	/**** Sorting Locally ****/
-	printf("Rank %d: Sorting Locally\n", rank);
-	qsort ((char *) inputData, countElementsLocal, sizeof(int), comparable);
+	//printf("Rank %d: Sorting Locally\n", rank);
+	qsort ((char *) arrayLocal, countElementsLocal, sizeof(int), comparable);
 
 	/**** Choosing Local Splitters ****/
-	printf("Rank %d: Choosing Local Splitters\n", rank);
-	splitter = (int *) malloc (sizeof (int) * (numProcs-1));
+	//printf("Rank %d: Choosing Local Splitters\n", rank);
+	splitterLocal = (int *) malloc (sizeof (int) * (numProcs-1));
+	//printf("Memory: %d:\n", (numProcs - 1)*sizeof(int));
 	for (i=0; i< (numProcs-1); i++){
-			splitter[i] = inputData[countElements/(numProcs*numProcs) * (i+1)];
+			splitterLocal[i] = arrayLocal[countElements/(numProcs*numProcs) * (i+1)];
 	}
 
 	/**** Gathering Local Splitters at Root ****/
-	printf("Rank %d: Gatherin Local Splitters at Root\n", rank);
+	//printf("Rank %d: Gatherin Local Splitters at Root\n", rank);
 	splitterGlobal = (int *) malloc (sizeof (int) * numProcs * (numProcs-1));
-	MPI_Gather (splitter, numProcs-1, MPI_INT, splitterGlobal, numProcs-1, MPI_INT, root, MPI_COMM_WORLD);
+	//printf("Memory: %d:\n", numProcs * (numProcs - 1)*sizeof(int));
+	MPI_Gather (splitterLocal, numProcs-1, MPI_INT, splitterGlobal, numProcs-1, MPI_INT, root, MPI_COMM_WORLD);
 
 	/**** Choosing Global Splitters ****/
 	if (rank == root){
-		printf("Rank %d: Choosing Global Splitters\n", rank);
+		//printf("Rank %d: Choosing Global Splitters\n", rank);
 		qsort ((char *) splitterGlobal, numProcs*(numProcs-1), sizeof(int), comparable);
 
 		for (i=0; i<numProcs-1; i++)
-		splitter[i] = splitterGlobal[(numProcs-1)*(i+1)];
+		splitterLocal[i] = splitterGlobal[(numProcs-1)*(i+1)];
 	}
 
 	/**** Broadcasting Global Splitters ****/
-	printf("Rank %d: Broadcasting Global Splitters\n", rank);
-	MPI_Bcast (splitter, numProcs-1, MPI_INT, 0, MPI_COMM_WORLD);
+	//printf("Rank %d: Broadcasting Global Splitters\n", rank);
+	MPI_Bcast (splitterLocal, numProcs-1, MPI_INT, 0, MPI_COMM_WORLD);
 
 	/**** Creating Buckets locally ****/
-	printf("Rank %d: Creating Buckets locally\n", rank);
-	buckets = (int *) malloc (sizeof (int) * (countElements + numProcs));
+	//printf("Rank %d: Creating Buckets locally\n", rank);
+	bucketGlobal = (int *) malloc (sizeof (int) * (countElements + numProcs));
+	//printf("Memory: %d:\n", (countElements + numProcs) *sizeof(int));
 
 	j = 0;
 	k = 1;
 
 	for (i=0; i<countElementsLocal; i++){
 		if(j < (numProcs-1)){
-		if (inputData[i] < splitter[j])
-				buckets[((countElementsLocal + 1) * j) + k++] = inputData[i];
+		if (arrayLocal[i] < splitterLocal[j])
+				bucketGlobal[((countElementsLocal + 1) * j) + k++] = arrayLocal[i];
 		else{
-			buckets[(countElementsLocal + 1) * j] = k-1;
+			bucketGlobal[(countElementsLocal + 1) * j] = k-1;
 				k=1;
 				j++;
 				i--;
 		}
 		}
 		else
-		buckets[((countElementsLocal + 1) * j) + k++] = inputData[i];
+		bucketGlobal[((countElementsLocal + 1) * j) + k++] = arrayLocal[i];
 	}
-	buckets[(countElementsLocal + 1) * j] = k - 1;
+	bucketGlobal[(countElementsLocal + 1) * j] = k - 1;
 
 	/**** Sending buckets to respective processors ****/
-	printf("Rank %d: Sending buckets to respective processors\n", rank);
+	//printf("Rank %d: Sending buckets to respective processors\n", rank);
 
-	bucketBuf = (int *) malloc (sizeof (int) * (countElements + numProcs));
+	bucketLocalBuf = (int *) malloc (sizeof (int) * (countElements + numProcs));
+	//printf("Memory: %d:\n", (countElements + numProcs)*sizeof(int));
 
-	MPI_Alltoall (buckets, countElementsLocal + 1, MPI_INT, bucketBuf,
+	MPI_Alltoall (bucketGlobal, countElementsLocal + 1, MPI_INT, bucketLocalBuf,
 						countElementsLocal + 1, MPI_INT, MPI_COMM_WORLD);
 
 	/**** Rearranging BucketBuffer ****/
-	printf("Rank %d: Rearranging BucketBuffer\n", rank);
+	//printf("Rank %d: Rearranging BucketBuffer\n", rank);
 	bucketLocal = (int *) malloc (sizeof (int) * 2 * countElements / numProcs);
+	//printf("Memory: %d:\n", (2 * countElementsLocal / numProcs)*sizeof(int));
 
 	count = 1;
 
 	for (j=0; j<numProcs; j++) {
 	k = 1;
-		for (i=0; i<bucketBuf[(countElements/numProcs + 1) * j]; i++)
-		bucketLocal[count++] = bucketBuf[(countElements/numProcs + 1) * j + k++];
+		for (i=0; i<bucketLocalBuf[(countElements/numProcs + 1) * j]; i++)
+		bucketLocal[count++] = bucketLocalBuf[(countElements/numProcs + 1) * j + k++];
 	}
 	bucketLocal[0] = count-1;
 
 	/**** Sorting Local Buckets using Bubble Sort ****/
-	printf("Rank %d: Sorting Local Buckets using Bubble Sort\n", rank);
+	//printf("Rank %d: Sorting Local Buckets using Bubble Sort\n", rank);
 	/*qsort ((char *) InputData, NoofElements_Bloc, sizeof(int), comparable); */
 
 	countElementsToSort = bucketLocal[0];
@@ -217,56 +223,45 @@ int main(int argc, char** argv) {
 
 	/**** Gathering sorted sub blocks at root ****/
 	if(rank == root) {
-		printf("Rank %d: Gathering sorted sub blocks at root\n", rank);
-			outputBuf = (int *) malloc (sizeof(int) * 2 * countElements);
-			output = (int *) malloc (sizeof (int) * countElements);
+		//printf("Rank %d: Gathering sorted sub blocks at root\n", rank);
+		outputBuf = (int *) malloc (sizeof(int) * 2 * countElements);
+		//printf("Memory: %d:\n", 2 * countElements*sizeof(int));
 	}
 
-	MPI_Gather (bucketLocal, 2*countElementsLocal, MPI_INT, outputBuf,
-					2*countElementsLocal, MPI_INT, root, MPI_COMM_WORLD);
+	MPI_Gather (bucketLocal, 2 * countElementsLocal, MPI_INT, outputBuf, 2 * countElementsLocal, MPI_INT, root, MPI_COMM_WORLD);
 
 	/**** Rearranging output buffer ****/
-		if (rank == root){
-			printf("Rank %d: Rearranging output buffer\n", rank);
-			count = 0;
-			for(j=0; j<numProcs; j++){
-			k = 1;
-			for(i=0; i<outputBuf[(2 * countElements/numProcs) * j]; i++)
-					output[count++] = outputBuf[(2*countElements/numProcs) * j + k++];
-			}
-
-		/**** Printng the output ****/
-		printf("Rank %d: Printing the output\n", rank);
-			if ((fp = fopen("sort.out", "w")) == NULL){
-				printf("Can't Open Output File \n");
-				exit(0);
-			}
-
-			fprintf (fp, "Number of Elements to be sorted : %d \n", countElements);
-			printf ( "Number of Elements to be sorted : %d \n", countElements);
-			fprintf (fp, "The sorted sequence is : \n");
-		printf( "Sorted output sequence is\n\n");
-			for (i=0; i<countElements; i++){
-				fprintf(fp, "%d\n", output[i]);
-				printf( "%d   ", output[i]);
+	if (rank == root){
+		//printf("Rank %d: Rearranging output buffer\n", rank);
+		count = 0;
+		for(j=0; j<numProcs; j++){
+		k = 1;
+		for(i=0; i<outputBuf[(2 * countElements/numProcs) * j]; i++)
+				arrayGlobal[count++] = outputBuf[(2*countElements/numProcs) * j + k++];
 		}
 
+		/**** Printng the output ****/
+		// //printf("Rank %d: Printing the output\n", rank);
+		// printf ( "Number of Elements to be sorted : %d \n", countElements);
+		// printf( "Sorted output sequence is\n\n");
+		// for (i=0; i<countElements; i++){
+		// 	printf( "%d   ", arrayGlobal[i]);
+		// }
+
 		CALI_MARK_BEGIN("correctness_check");
-		correctness_check(output, countElements);
+		correctness_check(arrayGlobal, countElements);
 		CALI_MARK_END("correctness_check");
 
 		printf ( " \n " );
-		fclose(fp);
-		free(input);
+		free(arrayGlobal);
 		free(outputBuf);
-		free(output);
 	}/* MyRank==0*/
 
-		free(inputData);
-		free(splitter);
+		free(arrayLocal);
+		free(splitterLocal);
 		free(splitterGlobal);
-		free(buckets);
-		free(bucketBuf);
+		free(bucketGlobal);
+		free(bucketLocalBuf);
 		free(bucketLocal);
 
 	adiak::init(NULL);

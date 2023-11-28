@@ -188,6 +188,14 @@ perform runs that invoke algorithm2 for Sorted, ReverseSorted, and Random data).
 generate additional performance data, measuring the hardware counters on the CPU. This can be done by adding `topdown.all` to the `spot()` options in the `CALI_CONFIG` in your jobfile.
 
 ## 5. Presentation
+Plots for the presentation should be as follows:
+- For each implementation:
+    - For each of comp_large, comm, and main:
+        - Strong scaling plots for each InputSize with lines for InputType (7 plots - 4 lines each)
+        - Strong scaling speedup plot for each InputType (4 plots)
+        - Weak scaling plots for each InputType (4 plots)
+
+Analyze these plots and choose a subset to present and explain in your presentation.
 
 ## 6. Final Report
 Submit a zip named `TeamX.zip` where `X` is your team number. The zip should contain the following files:

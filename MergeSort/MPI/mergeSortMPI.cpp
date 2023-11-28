@@ -261,13 +261,6 @@ int main(int argc, char** argv) {
     free(global_array);
     free(local_arr);
 
-
-  // Flush Caliper output before finalizing MPI
-  mgr.stop();
-  mgr.flush();
-
-  MPI_Finalize();
-
   adiak::init(NULL);
   adiak::launchdate();    // launch date of the job
   adiak::libraries();     // Libraries used
@@ -282,6 +275,13 @@ int main(int argc, char** argv) {
   adiak::value("num_procs", size); // The number of processors (MPI ranks)
   adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)
   adiak::value("implementation_source", "AI"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
+
+
+  // Flush Caliper output before finalizing MPI
+  mgr.stop();
+  mgr.flush();
+
+  MPI_Finalize();
 
   CALI_MARK_END("main");
 

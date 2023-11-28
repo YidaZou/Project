@@ -1,6 +1,6 @@
 # CSCE 435 Group project
 
-## 0. Group number: 
+## 0. Group number:
 6
 ## 1. Group members:
 1. Yida Zou
@@ -8,15 +8,13 @@
 3. Sam Hollenbeck
 4. Alex Pantazopol
 
-## 2. Project topic (e.g., parallel sorting algorithms)
-
-## 2. _due 10/25_ Project topic
+## 2. Project topic
 
 We chose to use the suggested topic idea:
 
 Choose 3+ parallel sorting algorithms, implement in MPI and CUDA.  Examine and compare performance in detail (computation time, communication time, how much data is sent) on a variety of inputs: sorted, random, reverse, sorted with 1% perturbed, etc.  Strong scaling, weak scaling, GPU performance.
 
-## 2. _due 10/25_ Brief project description (what algorithms will you be comparing and on what architectures)
+## 2. Project description
 
 We will communicate via iMessage.
 
@@ -35,17 +33,17 @@ To vary our algorithms, we will apply the following communication and paralleliz
 - fork/join parallelism
 - point-to-point communication
 
-  
-## 3. due 11/08 Pseudocode for each algorithm and implementation
+
+## 3. Pseudocode
 ```
 function SampleSort(unsortedList, t):  //t = thread count
     //Divide input into samples depending on number of threads
     sampleSize = calculateSampleSize(unsortedList, t)
     sample = selectSample(unsortedList, sampleSize)
-    
-    //Distribute the sample to all processors 
+
+    //Distribute the sample to all processors
     distribute(sample)  //Using MPI
-    
+
     //Each thread sorts the given sample locally
     sortedSample = sortLocally(sample)    //sort using cudaMemcpy
 
@@ -54,7 +52,7 @@ function SampleSort(unsortedList, t):  //t = thread count
 
     //Merge and sort all samples together
     sortedLists = mergeSublists(sortedSamples)
-    
+
     return sortedSublist
 ```
 ```
@@ -102,7 +100,7 @@ function void bitonic_sort(arr, numThreads) {
 }
 
 ```
-## 3. due 11/08 Evaluation plan - what and how will you measure and compare
+## 3. Evaluation plan
 Some of the things we will compare are:
 
 Runtimes between parallel sorting algorithms on GPU and CPU (MPI vs CUDA)
@@ -110,149 +108,40 @@ Scaling the number of threads or processors
 Scaling the problem size (length of array to sort)
 
 ## 3. Project implementation
-Implement your proposed algorithms, and test them starting on a small scale.
-Instrument your code, and turn in at least one Caliper file per algorithm;
-if you have implemented an MPI and a CUDA version of your algorithm,
-turn in a Caliper file for each.
 
-### 3a. Caliper instrumentation
-Please use the caliper build `/scratch/group/csce435-f23/Caliper/caliper/share/cmake/caliper` 
-(same as lab1 build.sh) to collect caliper files for each experiment you run.
-
-Your Caliper regions should resemble the following calltree
-(use `Thicket.tree()` to see the calltree collected on your runs):
-```
-main
-|_ data_init
-|_ comm
-|    |_ MPI_Barrier
-|    |_ comm_small  // When you broadcast just a few elements, such as splitters in Sample sort
-|    |   |_ MPI_Bcast
-|    |   |_ MPI_Send
-|    |   |_ cudaMemcpy
-|    |_ comm_large  // When you send all of the data the process has
-|        |_ MPI_Send
-|        |_ MPI_Bcast
-|        |_ cudaMemcpy
-|_ comp
-|    |_ comp_small  // When you perform the computation on a small number of elements, such as sorting the splitters in Sample sort
-|    |_ comp_large  // When you perform the computation on all of the data the process has, such as sorting all local elements
-|_ correctness_check
-```
-
-Required code regions:
-- `main` - top-level main function.
-    - `data_init` - the function where input data is generated or read in from file.
-    - `correctness_check` - function for checking the correctness of the algorithm output (e.g., checking if the resulting data is sorted).
-    - `comm` - All communication-related functions in your algorithm should be nested under the `comm` region.
-      - Inside the `comm` region, you should create regions to indicate how much data you are communicating (i.e., `comm_small` if you are sending or broadcasting a few values, `comm_large` if you are sending all of your local values).
-      - Notice that auxillary functions like MPI_init are not under here.
-    - `comp` - All computation functions within your algorithm should be nested under the `comp` region.
-      - Inside the `comp` region, you should create regions to indicate how much data you are computing on (i.e., `comp_small` if you are sorting a few values like the splitters, `comp_large` if you are sorting values in the array).
-      - Notice that auxillary functions like data_init are not under here.
-
-All functions will be called from `main` and most will be grouped under either `comm` or `comp` regions, representing communication and computation, respectively. You should be timing as many significant functions in your code as possible. **Do not** time print statements or other insignificant operations that may skew the performance measurements.
-
-**Nesting Code Regions** - all computation code regions should be nested in the "comp" parent code region as following:
-```
-CALI_MARK_BEGIN("comp");
-CALI_MARK_BEGIN("comp_large");
-mergesort();
-CALI_MARK_END("comp_large");
-CALI_MARK_END("comp");
-```
-
-**Looped GPU kernels** - to time GPU kernels in a loop:
-```
-### Bitonic sort example.
-int count = 1;
-CALI_MARK_BEGIN("comp");
-CALI_MARK_BEGIN("comp_large");
-int j, k;
-/* Major step */
-for (k = 2; k <= NUM_VALS; k <<= 1) {
-    /* Minor step */
-    for (j=k>>1; j>0; j=j>>1) {
-        bitonic_sort_step<<<blocks, threads>>>(dev_values, j, k);
-        count++;
-    }
-}
-CALI_MARK_END("comp_large");
-CALI_MARK_END("comp");
-```
-
-**Calltree Examples**:
-
-```
-# Bitonic sort tree - CUDA looped kernel
-1.000 main
-├─ 1.000 comm
-│  └─ 1.000 comm_large
-│     └─ 1.000 cudaMemcpy
-├─ 1.000 comp
-│  └─ 1.000 comp_large
-└─ 1.000 data_init
-```
-
-```
-# Matrix multiplication example - MPI
-1.000 main
-├─ 1.000 comm
-│  ├─ 1.000 MPI_Barrier
-│  ├─ 1.000 comm_large
-│  │  ├─ 1.000 MPI_Recv
-│  │  └─ 1.000 MPI_Send
-│  └─ 1.000 comm_small
-│     ├─ 1.000 MPI_Recv
-│     └─ 1.000 MPI_Send
-├─ 1.000 comp
-│  └─ 1.000 comp_large
-└─ 1.000 data_init
-```
-
-```
-# Mergesort - MPI
-1.000 main
-├─ 1.000 comm
-│  ├─ 1.000 MPI_Barrier
-│  └─ 1.000 comm_large
-│     ├─ 1.000 MPI_Gather
-│     └─ 1.000 MPI_Scatter
-├─ 1.000 comp
-│  └─ 1.000 comp_large
-└─ 1.000 data_init
-```
-
-### 3b. Collect Metadata
-
-Have the following `adiak` code in your programs to collect metadata:
-```
-adiak::init(NULL);
-adiak::launchdate();    // launch date of the job
-adiak::libraries();     // Libraries used
-adiak::cmdline();       // Command line used to launch the job
-adiak::clustername();   // Name of the cluster
-adiak::value("Algorithm", algorithm); // The name of the algorithm you are using (e.g., "MergeSort", "BitonicSort")
-adiak::value("ProgrammingModel", programmingModel); // e.g., "MPI", "CUDA", "MPIwithCUDA"
-adiak::value("Datatype", datatype); // The datatype of input elements (e.g., double, int, float)
-adiak::value("SizeOfDatatype", sizeOfDatatype); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
-adiak::value("InputSize", inputSize); // The number of elements in input dataset (1000)
-adiak::value("InputType", inputType); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
-adiak::value("num_procs", num_procs); // The number of processors (MPI ranks)
-adiak::value("num_threads", num_threads); // The number of CUDA or OpenMP threads
-adiak::value("num_blocks", num_blocks); // The number of CUDA blocks 
-adiak::value("group_num", group_number); // The number of your group (integer, e.g., 1, 10)
-adiak::value("implementation_source", implementation_source) // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
-```
-
-They will show up in the `Thicket.metadata` if the caliper file is read into Thicket.
-
-**See the `Builds/` directory to find the correct Caliper configurations to get the above metrics for CUDA, MPI, or OpenMP programs.** They will show up in the `Thicket.dataframe` when the Caliper file is read into Thicket.
+Currently, we only have graphs generated of Random InputType for our 6 algorithms.
 
 ## 4. Performance evaluation
 
-Include detailed analysis of computation performance, communication performance. 
+Include detailed analysis of computation performance, communication performance.
 Include figures and explanation of your analysis.
+
+### Sample Sort CUDA
+Graphs:
+https://github.com/YidaZou/Project/blob/master/Analysis/sampleSortCUDA/sampleSortCUDA_Graphs.pdf
+
+There is a significant increase in time across all number of threads as the input size increases.
+The time seems to be holding constant over all number of threads for all input sizes. This may be a problem of my sorting algorithm not working correctly.
+At least, in comp_large, the 2^12 input size seems to show somewhat of a downward trend in time as the number of threads increases.
+
+### Sample Sort MPI
+There is in increase in computational and communication time as the size to be sorted increases. It is expected that as the computational and comunicaiton time will decrease with an increased number of processors. It is expected that there are marginal differences between the differnt types of array population: random, sorted, reverse sorted, and 1% perturped. While one would expect a sorted array to have statistically significant reduction in time say compared to a randomly sorted aray, the overhead of communication time and the computational splitting make the differnce less prevelant. I was not able to collect all of the .cali files for every combination of parameters. Specifically, my jobs with 512 and 1024 number of processors either timed out or failed due to nodes being killed on Grace. I plan to provide graphs and every parameter combination of .cali files before the completion of the project.
+
+### Bitonic Sort CUDA
+
+Although graphs were not completed in time, we can expect an increase in the computational and communication time as the size of the array increase. We can also expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. Additionally, as we change the different array populations such as random, sorted, reverse sorted, and 1% perturped, we can expect slight differences in our runtimes. For instance, a “sorted” array  should have significantly less runtime than an unsorted array. Unfortunately, I was unable to collect all of my .cali files for submission. My jobs got stuck in the grace queue as many students were scrambling to finish their caliper files for this project. I plan to finish my graphs and my .cali files by the end of the project to provide a more cohesive analysis. 
+### Bitonic Sort MPI
+
+Although graphs were not completed in time, we can expect an increase in the computational and communication time as the size of the array increase. We can also expect bitonic sort parallelism to reach a point of diminishing returns as we increase the number of threads. Additionally, as we change the different array populations such as random, sorted, reverse sorted, and 1% perturped, we can expect slight differences in our runtimes. For instance, a “sorted” array  should have significantly less runtime than an unsorted array. Unfortunately, I was unable to collect all of my .cali files for submission. My jobs got stuck in the grace queue as many students were scrambling to finish their caliper files for this project. I plan to finish my graphs and my .cali files by the end of the project to provide a more cohesive analysis. 
+
+### Merge Sort MPI
+Graphs: https://github.com/YidaZou/Project/blob/master/Analysis/mergeSortMPI/Graphs.pdf
+
+One would expect that as the number of processers increases, the runtime of the mergesort algorithm runtime decreases up until a point of diminshing returns. This is because the communication time will increase, with more workers splitting up the overall task. However, there is a significant increase in time across all number of threads as the input size increases. Computation time and communication time both go up with the number of threads. This could signal a problem with the algorithm implementation.
+
+### Merge Sort CUDA
+
+As the number of threads increases, the runtime of the mergesort algorithm runtime decreases up until a point of diminshing returns. This is because the communication time increases between chunks of the algorithm. A graph will be provided to show these trends in detail.
 
 ### 4a. Vary the following parameters
 For inputSizes:
@@ -265,7 +154,7 @@ num_procs, num_threads:
 - MPI: num_procs:
     - 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024
 - CUDA: num_threads:
-    - 64, 128, 256, 512, 1024, 2048, 4096
+    - 64, 128, 256, 512, 1024
 
 This should result in 4x7x10=280 Caliper files for your MPI experiments.
 
@@ -278,9 +167,9 @@ To automate running a set of experiments, parameterize your program.
 - num_procs:   How many MPI ranks you are using
 - num_threads: Number of CUDA or OpenMP threads
 
-When your program works with these parameters, you can write a shell script 
-that will run a for loop over the parameters above (e.g., on 64 processors, 
-perform runs that invoke algorithm2 for Sorted, ReverseSorted, and Random data).  
+When your program works with these parameters, you can write a shell script
+that will run a for loop over the parameters above (e.g., on 64 processors,
+perform runs that invoke algorithm2 for Sorted, ReverseSorted, and Random data).
 
 ### 4c. You should measure the following performance metrics
 - `Time`
@@ -299,6 +188,14 @@ perform runs that invoke algorithm2 for Sorted, ReverseSorted, and Random data).
 generate additional performance data, measuring the hardware counters on the CPU. This can be done by adding `topdown.all` to the `spot()` options in the `CALI_CONFIG` in your jobfile.
 
 ## 5. Presentation
+Plots for the presentation should be as follows:
+- For each implementation:
+    - For each of comp_large, comm, and main:
+        - Strong scaling plots for each InputSize with lines for InputType (7 plots - 4 lines each)
+        - Strong scaling speedup plot for each InputType (4 plots)
+        - Weak scaling plots for each InputType (4 plots)
+
+Analyze these plots and choose a subset to present and explain in your presentation.
 
 ## 6. Final Report
 Submit a zip named `TeamX.zip` where `X` is your team number. The zip should contain the following files:

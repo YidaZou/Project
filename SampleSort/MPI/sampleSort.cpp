@@ -47,7 +47,7 @@ void dataInit(std::vector<int>& values, const std::string& inputType, int arrayS
         array_fill_sorted(values);
     } else if (inputType == "ReverseSorted") {
         array_fill_reverseSorted(values);
-    } else if (inputType == "1Perturbed") {
+    } else if (inputType == "1perturbed") {
         array_fill_1perturbed(values);
     } else {
         printf("Error: Invalid input type\n");
@@ -92,76 +92,145 @@ std::vector<int> sampleSortHelper(std::vector<int>& dataLocal, int rank, int num
     std::vector<int> offsetsIncoming(numProcs, 0);
 
 	// Step 1: Local sorting
+    CALI_MARK_BEGIN("comp");
+    CALI_MARK_BEGIN("comp_large");
     std::sort(dataLocal.begin(), dataLocal.end());
+    CALI_MARK_END("comp_large");
+    CALI_MARK_END("comp");
 
     // Step 2: Selecting samples for splitters
+    CALI_MARK_BEGIN("comp");
+    CALI_MARK_BEGIN("comp_small");
     for (int i = 1; i < numProcs; i++) {
         // Choose samples at regular intervals for efficient splitting
         int index = (dataLocal.size() / numProcs) * i;
         samplesLocal.push_back(dataLocal[index]);
     }
+    CALI_MARK_END("comp_small");
+    CALI_MARK_END("comp");
 
-    // Step 3: Gather samples at root and pick splitters
+    // Step 3: Gather samples at root
     if (rank == ROOT) {
         samplesGlobal.resize(numProcs * (numProcs - 1));
     }
+    CALI_MARK_BEGIN("comm");
+    CALI_MARK_BEGIN("comm_small");
+    CALI_MARK_BEGIN("MPI_Gather");
     MPI_Gather(samplesLocal.data(), samplesLocal.size(), MPI_INT, samplesGlobal.data(), samplesLocal.size(), MPI_INT, 0, MPI_COMM_WORLD);
+    CALI_MARK_END("MPI_Gather");
+    CALI_MARK_END("comm_small");
+    CALI_MARK_END("comm");
 
     if (rank == 0) {
         // Sort the gathered samples and select splitters
+        CALI_MARK_BEGIN("comp");
+        CALI_MARK_BEGIN("comp_small");
         std::sort(samplesGlobal.begin(), samplesGlobal.end());
         for (int i = 0; i < numProcs - 1; i++) {
             splitters[i] = samplesGlobal[(i * numProcs) + (numProcs / 2)];
         }
+        CALI_MARK_END("comp_small");
+        CALI_MARK_END("comp");
     }
 
+    // Step 4: Broadcast splitters to all processes
+    CALI_MARK_BEGIN("comm");
+    CALI_MARK_BEGIN("comm_small");
+    CALI_MARK_BEGIN("MPI_Bcast");
     MPI_Bcast(splitters.data(), splitters.size(), MPI_INT, 0, MPI_COMM_WORLD);
+    CALI_MARK_END("MPI_Bcast");
+    CALI_MARK_END("comm_small");
+    CALI_MARK_END("comm");
 
-    // Step 4: Bucketing based on splitters
+    // Step 5: Bucketing based on splitters
+    CALI_MARK_BEGIN("comp");
+    CALI_MARK_BEGIN("comp_large");
     for (int i = 0; i < dataLocal.size(); i++) {
         // Determine the bucket index for each value
         int bucketIdx = std::lower_bound(splitters.begin(), splitters.end(), dataLocal[i]) - splitters.begin();
         buckets[bucketIdx].push_back(dataLocal[i]);
     }
+    CALI_MARK_END("comp_large");
+    CALI_MARK_END("comp");
 
-    // Step 5: Prepare data for sending
+    // Step 6: Prepare data for sending
+    CALI_MARK_BEGIN("comp");
+    CALI_MARK_BEGIN("comp_large");
     for (int i = 0; i < numProcs; i++) {
         // Concatenate data from buckets for sending
         dataOutgoing.insert(dataOutgoing.end(), buckets[i].begin(), buckets[i].end());
         dataOutgoingCounts[i] = buckets[i].size();
     }
+    CALI_MARK_END("comp_large");
+    CALI_MARK_END("comp");
 
-    // Step 6: Communicate the sizes of the buckets
+    // Step 7: Communicate the sizes of the buckets
+    CALI_MARK_BEGIN("comm");
+    CALI_MARK_BEGIN("comm_small");
+    CALI_MARK_BEGIN("MPI_Alltoall");
     MPI_Alltoall(dataOutgoingCounts.data(), 1, MPI_INT, dataIncomingCounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+    CALI_MARK_END("MPI_Alltoall");
+    CALI_MARK_END("comm_small");
+    CALI_MARK_END("comm");
 
-    // Step 7: Calculate offsets for data exchange
+    // Step 8: Calculate offsets for data exchange
+    CALI_MARK_BEGIN("comp");
+    CALI_MARK_BEGIN("comp_small");
     for (int i = 1; i < numProcs; i++) {
         offsetsOutgoing[i] = dataOutgoingCounts[i - 1] + offsetsOutgoing[i - 1];
         offsetsIncoming[i] = dataIncomingCounts[i - 1] + offsetsIncoming[i - 1];
     }
+    CALI_MARK_END("comp_small");
+    CALI_MARK_END("comp");
 
-    // Step 8: Gather the sorted data after exchanging
+    // Step 9: Gather the exchanged data
     dataIncomingGlobal = std::accumulate(dataIncomingCounts.begin(), dataIncomingCounts.end(), 0);
    	dataSorted.resize(dataIncomingGlobal);
+    CALI_MARK_BEGIN("comm");
+    CALI_MARK_BEGIN("comm_large");
+    CALI_MARK_BEGIN("MPI_Alltoall");
     MPI_Alltoallv(dataOutgoing.data(), dataOutgoingCounts.data(), offsetsOutgoing.data(), MPI_INT, dataSorted.data(), dataIncomingCounts.data(), offsetsIncoming.data(), MPI_INT, MPI_COMM_WORLD);
+    CALI_MARK_END("MPI_Alltoall");
+    CALI_MARK_END("comm_large");
+    CALI_MARK_END("comm");
 
-    // Step 9: Final local sort on the exchanged data
+    // Step 10: Final local sort on the exchanged data
+    CALI_MARK_BEGIN("comp");
+    CALI_MARK_BEGIN("comp_large");
     std::sort(dataSorted.begin(), dataSorted.end());
+    CALI_MARK_END("comp_large");
+    CALI_MARK_END("comp");
 
-    // Step 10: Prepare for gathering sorted data at the root
+    // Step 11: Prepare for gathering of sorted data at the root
     dataSortedLocalSize = dataSorted.size();
+    CALI_MARK_BEGIN("comm");
+    CALI_MARK_BEGIN("comm_small");
+    CALI_MARK_BEGIN("MPI_Gather");
     MPI_Gather(&dataSortedLocalSize, 1, MPI_INT, dataIncomingCounts.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
+    CALI_MARK_END("MPI_Gather");
+    CALI_MARK_END("comm_small");
+    CALI_MARK_END("comm");
 
-    // Step 11: Calculate offsets for gathering
+    // Step 12: Calculate offsets for gathering
     if (rank == ROOT) {
+        CALI_MARK_BEGIN("comp");
+        CALI_MARK_BEGIN("comp_small");
         for (int i = 1; i < numProcs; i++) {
             offsets[i] = dataIncomingCounts[i - 1] + offsets[i - 1];
         }
         dataSortedGlobal.resize(sizeGlobal);
+        CALI_MARK_END("comp_small");
+        CALI_MARK_END("comp");
     }
 
-    // Step 12: Gather sorted data at root
+    // Step 13: Gather sorted data at root
+    CALI_MARK_BEGIN("comm");
+    CALI_MARK_BEGIN("comm_large");
+    CALI_MARK_BEGIN("MPI_Gather");
     MPI_Gatherv(dataSorted.data(), dataSorted.size(), MPI_INT, dataSortedGlobal.data(), dataIncomingCounts.data(), offsets.data(), MPI_INT, 0, MPI_COMM_WORLD);
+    CALI_MARK_END("MPI_Gather");
+    CALI_MARK_END("comm_large");
+    CALI_MARK_END("comm");
 
 	return dataSortedGlobal;
 }
@@ -221,7 +290,13 @@ int main(int argc, char **argv)
 	dataLocal.resize(sizeLocal);
 
 	// Scatter the global data to all processes
+    CALI_MARK_BEGIN("comm");
+    CALI_MARK_BEGIN("comm_large");
+    CALI_MARK_BEGIN("MPI_Scatter");
 	MPI_Scatter(dataGlobal.data(), sizeLocal, MPI_INT, dataLocal.data(), sizeLocal, MPI_INT, 0, MPI_COMM_WORLD);
+    CALI_MARK_END("MPI_Scatter");
+    CALI_MARK_END("comm_large");
+    CALI_MARK_END("comm");
 
 	// Perform sample sort on local data and get the sorted global data
 	dataGlobal = sampleSortHelper(dataLocal, rank, numProcs, sizeGlobal);

@@ -89,7 +89,7 @@ void dataInit(float *values){
   else if(inputType == "ReverseSorted"){
     array_fill_reverseSorted(values, inputSize);
   }
-  else if(inputType == "1%perturbed"){
+  else if(inputType == "1perturbed"){
     array_fill_1perturbed(values, inputSize);
   }
   else{
@@ -111,8 +111,7 @@ void dataInit(float *values){
     } \
 }
 
-// CUDA kernel to perform sample sort
-__global__ void sampleSort(float* d_data, float* d_sortedData, float* d_samples, int numSamples, int size) {
+__global__ void loadShared(float* d_data, float* d_sortedData, float* d_samples, int numSamples, int size) {
     // Each block processes a chunk of the input data
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -121,34 +120,25 @@ __global__ void sampleSort(float* d_data, float* d_sortedData, float* d_samples,
     if (tid < size) {
         sharedData[threadIdx.x] = d_data[tid];
     }
-    __syncthreads();
+}
 
-    // Each thread sorts its chunk using insertion sort
-    for (int i = 1; i < blockDim.x; ++i) {
-        float key = sharedData[i];
-        int j = i - 1;
-        while (j >= 0 && sharedData[j] > key) {
-            sharedData[j + 1] = sharedData[j];
-            --j;
-        }
-        sharedData[j + 1] = key;
-    }
-    __syncthreads();
-
+__global__ void selectSamples(float* d_data, float* d_sortedData, float* d_samples, int numSamples, int size) {
     // Each block selects numSamples - 1 evenly spaced samples
     if (threadIdx.x == 0) {
         for (int i = 0; i < numSamples - 1; ++i) {
             d_samples[blockIdx.x * (numSamples - 1) + i] = sharedData[i * blockDim.x];
         }
     }
+
     __syncthreads();
 
     // The first block selects global samples from its samples
     if (blockIdx.x == 0 && threadIdx.x < numSamples - 1) {
         d_samples[numSamples * gridDim.x + threadIdx.x] = d_samples[threadIdx.x * gridDim.x];
     }
-    __syncthreads();
+}
 
+__global__ void partitionData(float* d_data, float* d_sortedData, float* d_samples, int numSamples, int size) {
     // All blocks use the selected samples to partition their data
     int left = 0;
     int right = (tid < size) ? blockDim.x - 1 : 0;
@@ -160,7 +150,11 @@ __global__ void sampleSort(float* d_data, float* d_sortedData, float* d_samples,
             right = mid - 1;
         }
     }
-    __syncthreads();
+}
+
+__global__ void sendShared(float* d_data, float* d_sortedData, float* d_samples, int numSamples, int size) {
+    // Each block processes a chunk of the input data
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Store the sorted data into global memory
     if (tid < size) {
@@ -168,22 +162,21 @@ __global__ void sampleSort(float* d_data, float* d_sortedData, float* d_samples,
     }
 }
 
-int main(int argc, char *argv[]){
-    num_threads = atoi(argv[1]);
-    inputSize = atoi(argv[2]);
-    inputType = argv[3];
-    int numSamples = 10;
-    num_blocks = (inputSize + num_threads - 1) / num_threads;
+// CUDA kernel to perform sample sort
+__global__ void sampleSortKernel(float* d_data, float* d_sortedData, float* d_samples, int numSamples, int size) {
+    // Each thread sorts its chunk using insertion sort
+    for (int i = 1; i < blockDim.x; ++i) {
+        float key = sharedData[i];
+        int j = i - 1;
+        while (j >= 0 && sharedData[j] > key) {
+            sharedData[j + 1] = sharedData[j];
+            --j;
+        }
+        sharedData[j + 1] = key;
+    }
+}
 
-    //cali config manager
-    cali::ConfigManager mgr;
-    mgr.start();
-
-    float* h_data = new float[inputSize];
-    CALI_MARK_BEGIN(data_init);
-    dataInit(h_data);
-    CALI_MARK_END(data_init);
-    
+void sampleSort(){
     // Allocate device memory
     float* d_data;
     float* d_sortedData;
@@ -210,12 +203,69 @@ int main(int argc, char *argv[]){
     CALI_MARK_END(comp_large);
     CALI_MARK_END(comp);
 
+    cudaDeviceSynchronize();
+
+    // Load data into shared memory
+    CALI_MARK_BEGIN(comm);
+    CALI_MARK_BEGIN(comm_small);
+    loadShared<<<gridDim, blockDim, num_threads * sizeof(float)>>>(d_data, d_sortedData, d_samples, numSamples, inputSize);
+    CALI_MARK_END(comm_small);
+    CALI_MARK_END(comm);
+
+    cudaDeviceSynchronize();
+
+    // Each block selects evenly spaced samples
+    CALI_MARK_BEGIN(comp);
+    CALI_MARK_BEGIN(comp_small);
+    selectSamples<<<gridDim, blockDim, num_threads * sizeof(float)>>>(d_data, d_sortedData, d_samples, numSamples, inputSize);
+    CALI_MARK_END(comp_small);
+    CALI_MARK_END(comp);
+
+    cudaDeviceSynchronize();
+
+    // All blocks use the selected samples to partition their data
+    CALI_MARK_BEGIN(comp);
+    CALI_MARK_BEGIN(comp_large);
+    partitionData<<<gridDim, blockDim, num_threads * sizeof(float)>>>(d_data, d_sortedData, d_samples, numSamples, inputSize);
+    CALI_MARK_END(comp_large);
+    CALI_MARK_END(comp);
+
+    cudaDeviceSynchronize();
+
+    // Send the sorted data into global memory
+    CALI_MARK_BEGIN(comm);
+    CALI_MARK_BEGIN(comm_small);
+    sendShared<<<gridDim, blockDim, num_threads * sizeof(float)>>>(d_data, d_sortedData, d_samples, numSamples, inputSize);
+    CALI_MARK_END(comm_small);
+    CALI_MARK_END(comm);
+
+    cudaDeviceSynchronize();
+
     // Copy sorted data from device to host
     CALI_MARK_BEGIN(comm);
     CALI_MARK_BEGIN(comm_large);
     CUDA_CHECK(cudaMemcpy(h_data, d_sortedData, inputSize * sizeof(float), cudaMemcpyDeviceToHost));
     CALI_MARK_END(comm_large);
     CALI_MARK_END(comm);
+}
+
+int main(int argc, char *argv[]){
+    num_threads = atoi(argv[1]);
+    inputSize = atoi(argv[2]);
+    inputType = argv[3];
+    int numSamples = 10;
+    num_blocks = (inputSize + num_threads - 1) / num_threads;
+
+    //cali config manager
+    cali::ConfigManager mgr;
+    mgr.start();
+
+    float* h_data = new float[inputSize];
+    CALI_MARK_BEGIN(data_init);
+    dataInit(h_data);
+    CALI_MARK_END(data_init);
+
+    sampleSort();
 
     CALI_MARK_BEGIN(correctness_check);
     correctnessCheck(h_data);

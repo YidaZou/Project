@@ -74,7 +74,7 @@ void array_fill_1perturbed(float *arr, int length)
 }
 void dataInit(int *values, std::string inputType, int inputSize)
 {
-  if(inputType == "Random"){
+  if(inputType == "random"){
     array_fill_random(values, inputSize);
   }
   else if(inputType == "Sorted"){

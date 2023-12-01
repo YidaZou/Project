@@ -117,8 +117,7 @@ void array_fill_reverseSorted(int *arr, int length) {
   }
 }
 
-// fill an array of specified length with ints in nearly perfect order (1% of
-// values are out of order)
+// fill an array of specified length with ints in nearly perfect order (1% of values are out of order)
 void array_fill_1perturbed(int *arr, int length) {
   srand(time(NULL));
   int i;
@@ -135,12 +134,16 @@ void array_fill_1perturbed(int *arr, int length) {
 void dataInit(int *values, int NUM_VALS) {
   if (TYPE == "Random") {
     array_fill_random(values, NUM_VALS);
+    printf("Input Array Type: Random\n");
   } else if (TYPE == "Sorted") {
     array_fill_sorted(values, NUM_VALS);
+    printf("Input Array Type: Sorted\n");
   } else if (TYPE == "ReverseSorted") {
     array_fill_reverseSorted(values, NUM_VALS);
+    printf("Input Array Type: Reverse Sorted\n");
   } else if (TYPE == "1perturbed") {
     array_fill_1perturbed(values, NUM_VALS);
+    printf("Input Array Type: 1% Perturbed\n");
   } else {
     printf("Error: Invalid input type\n");
     return;
@@ -156,6 +159,13 @@ void correctnessCheck(int *outValues) {
     }
   }
   printf("\nArray sorted correctly\n");
+}
+
+
+void printArray(int *arr) {
+    for (int i = 0; i < NUM_VALS; i++) {
+        printf("%d\n", arr[i]);
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -181,19 +191,13 @@ int main(int argc, char *argv[]) {
   dataInit(values, NUM_VALS);
   CALI_MARK_END("data_init");
 
+  // printf("\nPrinting inputted array:\n");
+  // printArray(values);
+
   // Check for CUDA errors
   cudaError_t cudaStatus;
 
-  cudaStatus = cudaMalloc((void **)&dvalues, sizeof(int) * NUM_VALS);
-  if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "cudaMalloc (dvalues) failed! Error: %s\n", cudaGetErrorString(cudaStatus));
-    return 1;
-  }
-  cudaStatus = cudaMalloc((void **)&results, sizeof(int) * NUM_VALS);
-  if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "cudaMalloc (results) failed! Error: %s\n", cudaGetErrorString(cudaStatus));
-    return 1;
-  }
+
 
 
   /////// CUDA communication region 1: host to device //////////
@@ -201,9 +205,20 @@ int main(int argc, char *argv[]) {
   printf("\nCommunication section 1 start: host to device\n");
   CALI_MARK_BEGIN("comm");
   CALI_MARK_BEGIN("comm_large");
+  cudaStatus = cudaMalloc((void **)&dvalues, sizeof(int) * NUM_VALS);
+  if (cudaStatus != cudaSuccess) {
+    fprintf(stderr, "cudaMalloc (dvalues) failed! Error: %s\n", cudaGetErrorString(cudaStatus));
+    return 1;
+  }
   cudaStatus = cudaMemcpy(dvalues, values, sizeof(int) * NUM_VALS, cudaMemcpyHostToDevice);
   if (cudaStatus != cudaSuccess) {
     fprintf(stderr, "cudaMemcpy (host to device: dvalues) failed! Error: %s\n", cudaGetErrorString(cudaStatus));
+    return 1;
+  }
+
+  cudaStatus = cudaMalloc((void **)&results, sizeof(int) * NUM_VALS);
+  if (cudaStatus != cudaSuccess) {
+    fprintf(stderr, "cudaMalloc (results) failed! Error: %s\n", cudaGetErrorString(cudaStatus));
     return 1;
   }
   cudaStatus = cudaMemcpy(results, values, sizeof(int) * NUM_VALS, cudaMemcpyHostToDevice);
@@ -253,6 +268,9 @@ int main(int argc, char *argv[]) {
   correctnessCheck(values);
   CALI_MARK_END("correctness_check");
 
+
+  // printf("\nPrinting computed array:\n");
+  // printArray(values);
 
 
   adiak::init(NULL);

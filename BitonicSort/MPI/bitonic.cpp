@@ -1,37 +1,70 @@
-#include "mpi.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
-#include <math.h>
+#include <string.h>
+#include <time.h>
+
 #include <caliper/cali.h>
 #include <caliper/cali-manager.h>
 #include <adiak.hpp>
 
-#define MASTER 0      
+int NUM_VALS;
+int OPTION;
+int numTasks, rank;
+std::string TYPE;
+int TYPE_ID;
+const char* type[4] = {"random", "sorted", "reverse_sorted", "1perturbed"};
 
-int numtasks, taskid, numworkers, source, dest, mtype;
-double whole_computation_time, master_initialization_time = 0;
+std::string get_type(int type_id){
+  if(type_id == 1){
+    return "Random";
+  }
+  else if(type_id == 2){
+    return "Sorted";
+  }
+  else if(type_id == 3){
+    return "ReverseSorted";
+  }
+  else if(type_id == 4){
+    return "1perturbed";
+  }
+  else{
+    return "Invalid";
+  }
+}
+float random_float()
+{
+  return (float)rand()/(float)RAND_MAX;
+}
 
-float *curr_array;
-float *global_array;
-int array_size;
+float *array_fill(int length, int offset, int option) {
+    float * numbers = (float *) malloc(sizeof(float) * length);
+    if (option == 1) {
+        srand(offset);
+        for (int i = 0; i < length; ++i) {
+            numbers[i] = random_float();
+        }
+    } else if (option == 2) {
+        for (int i = 0; i < length; ++i) {
+            numbers[i] = (float)i + offset;
+        }
+    } else if (option == 3) {
+        for (int i = 0; i < length; ++i) {
+            numbers[i] = (float)length-1-i + offset;
+        }
+    } else if (option == 4) {
+        srand(time(NULL));
+        int i;
+        int perturb = length/100;
+        for (i = 0; i < length; ++i) {
+            if(i % perturb == 0)
+            numbers[i] = random_float();
+            else
+            numbers[i] = i;
+        }
+    }
 
-MPI_Status status;
-
-// Define Caliper region names
-const char *main_region = "main";
-const char *data_init = "data_init";
-const char *comm = "comm";
-const char *comm_MPI_Barrier = "MPI_Barrier";
-const char *comm_large = "comm_large";
-const char *comm_large_MPI_Gather = "MPI_Gather";
-const char *comm_large_MPI_Scatter = "MPI_Scatter";
-const char *comp = "comp";
-const char *comp_large = "comp_large";
-const char *correctness_check = "correctness_check";
-
-float random_float() {
-    return (float)rand() / (float)RAND_MAX;
+    return numbers;
 }
 void array_fill_random(float *arr, int length)
 {
@@ -72,255 +105,207 @@ void array_fill_1perturbed(float *arr, int length)
       arr[i] = i;
   }
 }
-void dataInit(int *values, std::string inputType, int inputSize)
-{
-  if(inputType == "Random"){
-    array_fill_random(values, inputSize);
-  }
-  else if(inputType == "Sorted"){
-    array_fill_sorted(values, inputSize);
-  }
-  else if(inputType == "ReverseSorted"){
-    array_fill_reverseSorted(values, inputSize);
-  }
-  else if(inputType == "1perturbed"){
-    array_fill_1perturbed(values, inputSize);
-  }
-  else{
-    printf("Error: Invalid input type\n");
-    return;
-  }
+
+
+// print array of howMany numbers.
+void printNumbers(float * numbers, int howMany) {
+  printf("\n");
+  for(int i=0; i < howMany; i++)
+    printf("%1.3f\n", numbers[i]);
+  printf("\n");
 }
 
-bool check_sorted(const float *arr, int length) {
-    for (int i = 1; i < length; ++i) {
-        if (arr[i - 1] > arr[i]) {
-            std::cout << arr[i - 1] << ' ' << arr[i] << ' ';
-            return false;
-        }
-    }
-    return true;
+// check if array of howMany random numbers is sorted in increasing order.
+// return 1 or 0.
+int isSorted(float *numbers, int howMany) {
+  for(int i=1; i<howMany; i++) {
+    if (numbers[i] < numbers[i-1]) return 0;
+  }
+  return 1;
 }
 
-int compare_floats(const void *a, const void *b) {
-    float fa = *(const float*) a;
-    float fb = *(const float*) b;
-    return (fa > fb) - (fa < fb);
+//Ref: https://www.geeksforgeeks.org/comparator-function-of-qsort-in-c/
+int compareDescending(const void *item1, const void *item2) {
+  float x = * ( (float *) item1), y = * ( (float *) item2);
+  return y-x < 0 ? -1 : y-x == 0 ? 0 : 1;
 }
 
-void bitonic_high(int stage_bit) {
-    int index;
-    float partner_max_value;
-
-    float *receive_buffer = (float *)malloc((array_size + 1) * sizeof(float));
-    int receive_count;
-
-    // Receive the maximum value from the partner process
-    MPI_Recv(&partner_max_value, 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-    int send_count = 0;
-    float *send_buffer = (float *)malloc((array_size + 1) * sizeof(float));
-
-    // Send the first element of the current array to the partner process
-    MPI_Send(&curr_array[0], 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD);
-
-    // Populate the send buffer with values less than the partner's max_value
-    for (index = 0; index < array_size; index++) {
-        if (curr_array[index] < partner_max_value) {
-            send_buffer[send_count + 1] = curr_array[index];
-            send_count++;
-        } else {
-            break;
-        }
-    }
-
-    // Exchange data with the partner process
-    MPI_Recv(receive_buffer, array_size, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    receive_count = (int)receive_buffer[0];
-    send_buffer[0] = (float)send_count;
-
-    // Send the send_buffer to the partner process
-    MPI_Send(send_buffer, send_count + 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD);
-
-    // Merge received values into the current array
-    for (index = 1; index <= receive_count; index++) {
-        if (receive_buffer[index] > curr_array[0]) {
-            curr_array[0] = receive_buffer[index];
-        } else {
-            break;
-        }
-    }
-
-    // Sort the updated current array
-    qsort(curr_array, array_size, sizeof(float), compare_floats);
-
-    free(send_buffer);
-    free(receive_buffer);
+int compareAscending(const void *item1, const void *item2) {
+  float x = * ( (float *) item1), y = * ( (float *) item2);
+  return x-y < 0 ? -1 : x-y == 0 ? 0 : 1;
 }
 
+float *tempArray;
 
-void bitonic_low(int stage_bit) {
-    int i;
-    float partner_min_value;
+void compareExchange(float *numbers, int howMany, 
+             int node1, int node2, int biggerFirst,
+             int sequenceNo) {
+  if (node1 != rank && node2 != rank) return;
 
-    // Allocate memory for send and receive buffers
-    float *send_buffer = (float *)malloc((array_size + 1) * sizeof(float));
-    int send_count = 0;
-    MPI_Send(&curr_array[array_size - 1], 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD);
+  memcpy(tempArray, numbers, howMany*sizeof(float));
 
-    int receive_count;
-    float *receive_buffer = (float *)malloc((array_size + 1) * sizeof(float));
-    MPI_Recv(&partner_min_value, 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Status status;
 
-    // Populate send buffer with values greater than partner's min_value
-    for (i = array_size - 1; i >= 0; i--) {
-        if (curr_array[i] > partner_min_value) {
-            send_buffer[send_count + 1] = curr_array[i];
-            send_count++;
-        } else {
-            break;
-        }
-    }
+  // get numbers from the other node. 
+  // have the process that is node1 always send first, and node2 
+  // receive first - they can't both send at the same time.
+  int nodeFrom = node1==rank ? node2 : node1;
+  if (node1 == rank) {
+    MPI_Send(numbers, howMany, MPI_FLOAT, nodeFrom, sequenceNo, MPI_COMM_WORLD);
+    MPI_Recv(&tempArray[howMany], howMany, MPI_FLOAT, nodeFrom, sequenceNo, 
+         MPI_COMM_WORLD, &status);
+  }
+  else {
+    MPI_Recv(&tempArray[howMany], howMany, MPI_FLOAT, nodeFrom, sequenceNo, 
+         MPI_COMM_WORLD, &status);
+    MPI_Send(numbers, howMany, MPI_FLOAT, nodeFrom, sequenceNo, MPI_COMM_WORLD);
+  }
 
-    send_buffer[0] = (float)send_count;
-    MPI_Send(send_buffer, send_count + 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD);
-    MPI_Recv(receive_buffer, array_size, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  // sort them.
+  if (biggerFirst) {
+    qsort(tempArray, howMany*2, sizeof(float), compareDescending);
+  }
+  else {
+    qsort(tempArray, howMany*2, sizeof(float), compareAscending);
+  }
 
-    
-    // Merge received values into the current array
-    receive_count = (int)receive_buffer[0];
-    for (i = 1; i <= receive_count; i++) {
-        if (curr_array[array_size - 1] < receive_buffer[i]) {
-            curr_array[array_size - 1] = receive_buffer[i];
-        } else {
-            break;
-        }
-    }
-
-    // Sort the updated current array
-    qsort(curr_array, array_size, sizeof(float), compare_floats);
-
-    free(send_buffer);
-    free(receive_buffer);
+  // keep only half of them.
+  if (node1 == rank)
+    memcpy(numbers, tempArray, howMany*sizeof(float));
+  else
+    memcpy(numbers, &tempArray[howMany], howMany*sizeof(float));
 }
 
+/*
+  function: mergeBitonic - perform bitonic merge sort.
+*/
+void mergeBitonic(float *numbers, int howMany) {
+  tempArray = (float *) malloc(sizeof(float) * howMany * 2);
+
+  int log = numTasks;
+  int pow2i = 2;
+  int sequenceNumber = 0;
+
+  for(int i=1; log > 1 ; i++) {
+    int pow2j = pow2i;
+    for(int j=i; j >= 1; j--) {
+      sequenceNumber++;
+      for(int node=0; node < numTasks; node += pow2j) {
+    for(int k=0; k < pow2j/2; k++) {
+      //printf("i=%d, j=%d, node=%d, k=%d, pow2i=%d, pow2j=%d\n", 
+      // i, j, node, k, pow2i, pow2j);
+      compareExchange(numbers, howMany, node+k, node+k+pow2j/2, 
+              ((node+k) % (pow2i*2) >= pow2i),
+              sequenceNumber);
+    }
+      }
+      pow2j /= 2;
+
+        //    printf(" after substage %d", j);
+        //    printNumbers(numbers, howMany);
+    }
+    pow2i *= 2;
+    log /= 2;
+
+    //    printf("after stage %d\n", i);
+    //    printNumbers(numbers, howMany);
+  }
+
+  free(tempArray);
+}
 
 int main(int argc, char *argv[]) {
-    CALI_CXX_MARK_FUNCTION;
-    cali::ConfigManager mgr;
-    mgr.start();
-    CALI_MARK_BEGIN(main_region);
+  CALI_CXX_MARK_FUNCTION;
+  int howMany;
+  long int returnVal;
+  int len;
+  char hostname[MPI_MAX_PROCESSOR_NAME];
 
-    int numVals;
+  // initialize
+  MPI_Init(&argc, &argv);
 
-    if (argc == 2) {
-        numVals = atoi(argv[1]);
-    } else {
-        fprintf(stderr, "\nUsage: %s <number_of_values>\n", argv[0]);
-        return EXIT_FAILURE;
-    }
+  MPI_Comm_size(MPI_COMM_WORLD, &numTasks);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Get_processor_name(hostname, &len);
 
-    // Initialize MPI and determine rank and size
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &taskid);
-    MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
+  cali::ConfigManager mgr;
+  mgr.start();
 
-    float *values = (float *)malloc(numVals * sizeof(float));
+  NUM_VALS = atoi(argv[1]);
+  OPTION = atoi(argv[2]);
+  howMany = NUM_VALS/numTasks;
 
-    if (numtasks < 2) {
-        fprintf(stderr, "Need at least two MPI tasks to start. Quitting...\n");
-        MPI_Finalize();
-        free(values);
-        return EXIT_FAILURE;
-    }
+  int offset = rank*howMany;
+  // each process creates a list of random numbers.
+  CALI_MARK_BEGIN("data_init");
+  float * numbers = array_fill(howMany, offset, OPTION);
+  CALI_MARK_END("data_init");
+//   printNumbers(numbers, howMany);
 
-    array_size = numVals / numtasks;
-    curr_array = (float *)malloc(array_size * sizeof(float));
+  CALI_MARK_BEGIN("comp");
+  CALI_MARK_BEGIN("comp_large");
+  mergeBitonic(numbers, howMany);
+  CALI_MARK_END("comp_large");
+  CALI_MARK_END("comp");
+  
+//   printNumbers(numbers, howMany);
 
-    // Allocate memory for the global array in the master process
-    if (taskid == MASTER) {
-        global_array = (float *)malloc(numVals * sizeof(float));
-    }
+  // they are all sorted, now just gather them up.
+  float * allNumbers = NULL;
+  if (rank == 0) {
+    allNumbers = (float *) malloc(howMany * numTasks * sizeof(float));
+  }
 
-    CALI_MARK_BEGIN(data_init);
-    dataInit(curr_array, array_size);
-    CALI_MARK_END(data_init);
+  CALI_MARK_BEGIN("comm");
+  CALI_MARK_BEGIN("comm_large");
+  CALI_MARK_BEGIN("MPI_Gather");
+  //Gather all values into the global array
+  MPI_Gather(numbers, howMany, MPI_FLOAT, 
+         allNumbers, howMany, MPI_FLOAT, 
+         0, MPI_COMM_WORLD);
+  CALI_MARK_END("MPI_Gather");
+  CALI_MARK_END("comm_large");
+  CALI_MARK_END("comm");
+  
 
-
-    CALI_MARK_BEGIN(comm_MPI_Barrier); F
-    // MPI barrier
-    MPI_Barrier(MPI_COMM_WORLD);
-    CAKI_MARK_END(comm_MPI_Barrier);
-
-    int proc_step = (int)(log2(numtasks));
-
-
-    CALI_MARK_BEGIN(comp);
-    CALI_MARK_BEGIN(comp_large);
-    // Local sort in worker processes
-    qsort(curr_array, array_size, sizeof(float), compare_floats);
-
-    // Iterate over stages, processes, and call bitonic_low or bitonic_high
-    for (int i = 0; i < proc_step; i++) {
-        for (int j = i; j >= 0; j--) {
-            if (((taskid >> (i + 1)) % 2 == 0 && (taskid >> j) % 2 == 0) ||
-                ((taskid >> (i + 1)) % 2 != 0 && (taskid >> j) % 2 != 0)) {
-                bitonic_low(j);
-            } else {
-                bitonic_high(j);
-            }
-        }
-    }
-    CALI_MARK_END(comp_large);
-    CALI_MARK_END(comp);
-
-
-    CALI_MARK_BEGIN(comm_large);
-    CALI_MARK_BEGIN(comm_large_MPI_Gather);
-    CALI_MARK_BEGIN(comm);
-    // MPI GATHER for collecting local arrays into the global array
-    MPI_Gather(curr_array, array_size, MPI_FLOAT, global_array, array_size, MPI_FLOAT, MASTER, MPI_COMM_WORLD);
-    CALI_MARK_END(comm_large);
-    CALI_MARK_END(comm_large_MPI_Gather);
-    CALI_MARK_END(comm);
-
-    CALI_MARK_BEGIN(correctness_check);
-
-    // Check the correctness of the global array sorting in the master process
-    if (taskid == MASTER) {
-        int is_correct = check_sorted(global_array, numVals);
-        if (is_correct) {
-            printf("The global array is correctly sorted.\n");
-        } else {
-            printf("Error: The global array is not correctly sorted.\n");
-        }
-    }
-    CALI_MARK_END(correctness_check);
-
-    CALI_MARK_END(main_region);
-
-    free(curr_array);
-    if (taskid == MASTER) {
-        free(global_array);
-    }
+  //Verify!
+  if (rank == 0) {
+    CALI_MARK_BEGIN("correctness_check");
+    int correct = isSorted(allNumbers, howMany * numTasks);
+    // if (correct)
+    //   printf("Successfully sorted!\n");
+    // else
+    //   printf("Error: numbers not sorted.\n");
+    CALI_MARK_END("correctness_check");
     
+    // printNumbers(allNumbers, howMany * numTasks);
+
+    free(allNumbers);
+
     adiak::init(NULL);
     adiak::launchdate();    // launch date of the job
     adiak::libraries();     // Libraries used
     adiak::cmdline();       // Command line used to launch the job
     adiak::clustername();   // Name of the cluster
-    adiak::value("Algorithm", "Bitonic"); // The name of the algorithm you are using (e.g., "MergeSort", "BitonicSort")
+    adiak::value("Algorithm", "bitonic_sort"); // The name of the algorithm you are using (e.g., "MergeSort", "BitonicSort")
     adiak::value("ProgrammingModel", "MPI"); // e.g., "MPI", "CUDA", "MPIwithCUDA"
     adiak::value("Datatype", "float"); // The datatype of input elements (e.g., double, int, float)
     adiak::value("SizeOfDatatype", sizeof(float)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
-    adiak::value("InputSize", numVals); // The number of elements in input dataset (1000)
-    adiak::value("InputType", "Random"); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
-    adiak::value("num_procs", numtasks); // The number of processors (MPI ranks)
-    adiak::value("group_num", "6"); // The number of your group (integer, e.g., 1, 10)
+    adiak::value("InputSize", NUM_VALS); // The number of elements in input dataset (1000)
+    adiak::value("InputType", type[OPTION-1]); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
+    adiak::value("num_procs", numTasks); // The number of processors (MPI ranks)
+    adiak::value("group_num", 6); // The number of your group (integer, e.g., 1, 10)
     adiak::value("implementation_source", "Online"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
+    adiak::value("correctness", correct); // Whether the dataset has been sorted (0, 1)
 
-		
-    MPI_Finalize();
+  }
+  
+  free(numbers);
 
-    return 0;
+  // Flush Caliper output before finalizing MPI
+  mgr.stop();
+  mgr.flush();
+
+  MPI_Finalize();
+  return 0;
 }

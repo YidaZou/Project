@@ -101,15 +101,19 @@ function void bitonic_sort(arr, numThreads) {
 
 ```
 ## 3. Evaluation plan
-Some of the things we will compare are:
+We evaluated our sorting algorithm through the following:
 
 Runtimes between parallel sorting algorithms on GPU and CPU (MPI vs CUDA)
+
 Scaling the number of threads or processors
+
 Scaling the problem size (length of array to sort)
+
+Comparing different input types (Random, Sorted, Reverse Sorted, 1 % perturbed)
 
 ## 3. Project implementation
 
-Currently, we only have graphs generated of Random InputType for our 6 algorithms.
+Our implementations can be found in their respective folders (BitonicSort, MergeSort, SampleSort) with each folder having subfolders for MPI and CUDA.
 
 ## 4. Performance evaluation
 

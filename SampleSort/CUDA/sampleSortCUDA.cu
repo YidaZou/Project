@@ -21,7 +21,7 @@ const char* comm_small = "comm_small";
 const char* comm_large = "comm_large";
 const char* comp = "comp";
 const char* comp_small = "comp_small";
-const char* comp_large = "comp_large";
+const char* cudaMemcpy_region = "cudaMemcpy";
 
 float random_float()
 {
@@ -188,7 +188,9 @@ void sampleSort(){
     // Copy data from host to device
     CALI_MARK_BEGIN(comm);
     CALI_MARK_BEGIN(comm_large);
+    CALI_MARK_BEGIN(cudaMemcpy_region);
     CUDA_CHECK(cudaMemcpy(d_data, h_data, inputSize * sizeof(float), cudaMemcpyHostToDevice));
+    CALI_MARK_END(cudaMemcpy_region);
     CALI_MARK_END(comm_large);
     CALI_MARK_END(comm);
 
@@ -244,7 +246,9 @@ void sampleSort(){
     // Copy sorted data from device to host
     CALI_MARK_BEGIN(comm);
     CALI_MARK_BEGIN(comm_large);
+    CALI_MARK_BEGIN(cudaMemcpy_region);
     CUDA_CHECK(cudaMemcpy(h_data, d_sortedData, inputSize * sizeof(float), cudaMemcpyDeviceToHost));
+    CALI_MARK_END(cudaMemcpy_region);
     CALI_MARK_END(comm_large);
     CALI_MARK_END(comm);
 }

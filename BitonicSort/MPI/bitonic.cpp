@@ -22,10 +22,10 @@ MPI_Status status;
 const char *main_region = "main";
 const char *data_init = "data_init";
 const char *comm = "comm";
-const char *comm_MPI_Barrier = "comm_MPI_Barrier";
+const char *comm_MPI_Barrier = "MPI_Barrier";
 const char *comm_large = "comm_large";
-const char *comm_large_MPI_Gather = "comm_large_MPI_Gather";
-const char *comm_large_MPI_Scatter = "comm_large_MPI_Scatter";
+const char *comm_large_MPI_Gather = "MPI_Gather";
+const char *comm_large_MPI_Scatter = "MPI_Scatter";
 const char *comp = "comp";
 const char *comp_large = "comp_large";
 const char *correctness_check = "correctness_check";
@@ -72,19 +72,19 @@ void array_fill_1perturbed(float *arr, int length)
       arr[i] = i;
   }
 }
-
-void array_fill(float *values, float NUM_VALS) {
-  if(TYPE == "Random"){
-    array_fill_random(values, NUM_VALS);
+void dataInit(int *values, std::string inputType, int inputSize)
+{
+  if(inputType == "random"){
+    array_fill_random(values, inputSize);
   }
-  else if(TYPE == "Sorted"){
-    array_fill_sorted(values, NUM_VALS);
+  else if(inputType == "Sorted"){
+    array_fill_sorted(values, inputSize);
   }
-  else if(TYPE == "ReverseSorted"){
-    array_fill_reverseSorted(values, NUM_VALS);
+  else if(inputType == "ReverseSorted"){
+    array_fill_reverseSorted(values, inputSize);
   }
-  else if(TYPE == "1%perturbed"){
-    array_fill_1perturbed(values, NUM_VALS);
+  else if(inputType == "1perturbed"){
+    array_fill_1perturbed(values, inputSize);
   }
   else{
     printf("Error: Invalid input type\n");
@@ -186,6 +186,7 @@ void bitonic_low(int stage_bit) {
     MPI_Send(send_buffer, send_count + 1, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD);
     MPI_Recv(receive_buffer, array_size, MPI_FLOAT, taskid ^ (1 << stage_bit), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
+    
     // Merge received values into the current array
     receive_count = (int)receive_buffer[0];
     for (i = 1; i <= receive_count; i++) {
@@ -198,6 +199,7 @@ void bitonic_low(int stage_bit) {
 
     // Sort the updated current array
     qsort(curr_array, array_size, sizeof(float), compare_floats);
+
     free(send_buffer);
     free(receive_buffer);
 }
@@ -241,13 +243,20 @@ int main(int argc, char *argv[]) {
     }
 
     CALI_MARK_BEGIN(data_init);
-    array_fill(curr_array, array_size);
+    dataInit(curr_array, array_size);
     CALI_MARK_END(data_init);
 
+
+    CALI_MARK_BEGIN(comm_MPI_Barrier); F
     // MPI barrier
     MPI_Barrier(MPI_COMM_WORLD);
+    CAKI_MARK_END(comm_MPI_Barrier);
+
     int proc_step = (int)(log2(numtasks));
 
+
+    CALI_MARK_BEGIN(comp);
+    CALI_MARK_BEGIN(comp_large);
     // Local sort in worker processes
     qsort(curr_array, array_size, sizeof(float), compare_floats);
 
@@ -262,9 +271,18 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    CALI_MARK_END(comp_large);
+    CALI_MARK_END(comp);
 
+
+    CALI_MARK_BEGIN(comm_large);
+    CALI_MARK_BEGIN(comm_large_MPI_Gather);
+    CALI_MARK_BEGIN(comm);
     // MPI GATHER for collecting local arrays into the global array
     MPI_Gather(curr_array, array_size, MPI_FLOAT, global_array, array_size, MPI_FLOAT, MASTER, MPI_COMM_WORLD);
+    CALI_MARK_END(comm_large);
+    CALI_MARK_END(comm_large_MPI_Gather);
+    CALI_MARK_END(comm);
 
     CALI_MARK_BEGIN(correctness_check);
 

@@ -10,17 +10,28 @@ int THREADS;
 int BLOCKS;
 int NUM_VALS;
 std::string TYPE;
+int TYPE_ID;
+
+const char* type[4] = {"random", "sorted", "reverse_sorted", "1perturbed"};
+
 
 cudaEvent_t start, stop;
-const char* main_region = "main_region";
-const char* data_init= "data_init_region";
-const char* comm_region = "comm_region";
-const char* comm_small_region = "comm_small_region";
-const char* comm_large_region = "comm_large_region";
-const char* bitonic_sort_step_region = "bitonic_sort_step";
+const char* main_region = "main";
+const char* data_init= "data_init";
+const char* comm_region = "comm";
+const char* comm_large_region = "comm_large";
+const char* comp = "comp";
+const char* comp_large = "comp_large";
+const char* cudaMemcpy = "cudaMemcpy";
+
+
 const char* correctness_check = "correctness_check";
 
 
+/*
+CUDA Regions needed:
+- 
+*/
 
 
 // Store results in these variables.
@@ -31,6 +42,23 @@ int kernel_call_count = 0;
 double numerator;
 double denominator;
 
+std::string get_type(int type_id){
+  if(type_id == 1){
+    return "Random";
+  }
+  else if(type_id == 2){
+    return "Sorted";
+  }
+  else if(type_id == 3){
+    return "ReverseSorted";
+  }
+  else if(type_id == 4){
+    return "1perturbed";
+  }
+  else{
+    return "Invalid";
+  }
+}
 
 float random_float()
 {
@@ -148,35 +176,27 @@ void bitonic_sort(float *values)
   //MEM COPY FROM HOST TO DEVICE
 
 
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
 
+  CALI_MARK_BEGIN(comm_region);
   CALI_MARK_BEGIN(comm_large_region);
+  CALI_MARK_BEGIN(cudaMemcpy);
 
-  cudaEventRecord(start, 0);
   cudaMemcpy(dev_values, values, size, cudaMemcpyHostToDevice);
   
-  
+  CALI_MARK_END(comm_region);
+  CALI_MARK_END(cudaMemcpy);
   CALI_MARK_END(comm_large_region);
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop);
-
-  cudaEventElapsedTime(&cudaMemcpy_host_to_device_time, start, stop);
-
 
 
   dim3 blocks(BLOCKS,1);    /* Number of blocks   */
   dim3 threads(THREADS,1);  /* Number of threads  */
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
 
-  cudaEventRecord(start, 0);
 
   int j, k;
 
   // KERNEL BEING CALLED X NUMBER OF TIfMES HERE 
   /* Major step */
-  CALI_MARK_BEGIN(bitonic_sort_step_region);
+
 
   for (k = 2; k <= NUM_VALS; k <<= 1) {
     /* Minor step */
@@ -186,30 +206,16 @@ void bitonic_sort(float *values)
       bitonic_sort_step<<<blocks, threads>>>(dev_values, j, k);
     }
   }
+  cudaDeviceSynchronize();
 
-  CALI_MARK_END(bitonic_sort_step_region);
 
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop);
-
-  cudaEventElapsedTime(&bitonic_sort_step_time, start, stop);
   // NEED TO TIME
   //MEM COPY FROM DEVICE TO HOST
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
 
-  cudaEventRecord(start, 0);
 
-  CALI_MARK_BEGIN(comm_large_region);
   cudaMemcpy(values, dev_values, size, cudaMemcpyDeviceToHost);
-  CALI_MARK_END(comm_large_region);
 
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop);
 
-  cudaEventElapsedTime(&cudaMemcpy_device_to_host_time, start, stop);
-
-  cudaDeviceSynchronize();
 
 
   cudaFree(dev_values);
@@ -220,7 +226,9 @@ int main(int argc, char *argv[])
 {
   THREADS = atoi(argv[1]);
   NUM_VALS = atoi(argv[2]);
-  TYPE = argv[3];
+  TYPE_ID = atoi(argv[3]);
+  TYPE = get_type(TYPE_ID);
+
   BLOCKS = NUM_VALS / THREADS;
 
   // Create caliper ConfigManager object
@@ -233,10 +241,14 @@ int main(int argc, char *argv[])
   CALI_MARK_BEGIN(data_init);
   dataInit(values, NUM_VALS);
   CALI_MARK_END(data_init);
+  
+  CALI_MARK_BEGIN(comp);
+  CALI_MARK_BEGIN(comp_large);
 
   bitonic_sort(values); /* Inplace */
 
-
+  CALI_MARK_END(comp);
+  CALI_MARK_END(comp_large);
 
   CALI_MARK_BEGIN(correctness_check);
   correctnessCheck(values);
@@ -255,7 +267,7 @@ int main(int argc, char *argv[])
   adiak::value("Datatype", "float"); // The datatype of input elements (e.g., double, int, float)
   adiak::value("SizeOfDatatype", sizeof(float)); // sizeof(datatype) of input elements in bytes (e.g., 1, 2, 4)
   adiak::value("InputSize", NUM_VALS); // The number of elements in input dataset (1000)
-  adiak::value("InputType", "Random"); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
+  adiak::value("InputType", type[TYPE_ID - 1]); // For sorting, this would be "Sorted", "ReverseSorted", "Random", "1%perturbed"
   adiak::value("num_threads", THREADS); // The number of CUDA or OpenMP threads
   adiak::value("group_num", "6"); // The number of your group (integer, e.g., 1, 10)
   adiak::value("implementation_source", "Lab"); // Where you got the source code of your algorithm; choices: ("Online", "AI", "Handwritten").
